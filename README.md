@@ -1,4 +1,7 @@
-# Smart Emergency Response & Ambulance Dispatch System
+# BVM-4CP31
+FINAL YEAR PROJECT
+
+## Smart Emergency Response & Ambulance Dispatch System
 
 Project scaffold for a college project combining a React frontend, .NET Minimal API backend and SQL Server database. The system provides a no-login emergency request flow (Get GPS + Call 108) and a dispatcher/admin flow for assigning ambulances.
 
