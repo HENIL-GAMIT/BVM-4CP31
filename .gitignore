@@ -1,0 +1,12 @@
+node_modules/
+bin/
+obj/
+*.db
+*.log
+/.vs/
+/coverage/
+/.env
+/backend/appsettings.Development.json
+/frontend/build/
+/frontend/.expo/
+/frontend/dist/

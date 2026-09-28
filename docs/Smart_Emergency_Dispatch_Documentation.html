@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Emergency Response & Ambulance Dispatch System - Complete System & Modules Documentation</title>
+<style>
+  :root {
+    --primary: #1e3a8a;
+    --primary-light: #3b82f6;
+    --accent: #dc2626;
+    --accent-dark: #991b1b;
+    --success: #059669;
+    --warning: #d97706;
+    --bg-light: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --border: #e2e8f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-main);
+    background-color: #ffffff;
+    font-size: 11pt;
+  }
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+
+  @media print {
+    body { font-size: 10pt; line-height: 1.5; }
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+    .cover-page { height: 100vh; page-break-after: always; }
+    a { text-decoration: none; color: inherit; }
+  }
+
+  .cover-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 60px 40px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #ffffff;
+    min-height: 85vh;
+    border-radius: 8px;
+    margin-bottom: 40px;
+  }
+
+  .cover-badge {
+    background-color: var(--accent);
+    color: #ffffff;
+    padding: 6px 14px;
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    display: inline-block;
+  }
+
+  .cover-title {
+    font-size: 32pt;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+
+  .cover-subtitle {
+    font-size: 16pt;
+    font-weight: 400;
+    color: #93c5fd;
+    margin-bottom: 36px;
+    max-width: 680px;
+  }
+
+  .cover-meta {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 24px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .meta-item span {
+    display: block;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .meta-item strong {
+    font-size: 11pt;
+    color: #f8fafc;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 0;
+  }
+
+  h1, h2, h3, h4 {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  h1 {
+    font-size: 20pt;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 8px;
+    margin: 32px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 {
+    font-size: 15pt;
+    color: var(--primary);
+    margin: 24px 0 12px;
+    border-left: 4px solid var(--primary);
+    padding-left: 10px;
+  }
+
+  h3 {
+    font-size: 12pt;
+    margin: 18px 0 8px;
+    color: #1e293b;
+  }
+
+  p {
+    margin-bottom: 12px;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin: 8px 0 16px 24px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  .card {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-highlight {
+    border-left: 4px solid var(--accent);
+    background-color: #fff5f5;
+  }
+
+  .card-success {
+    border-left: 4px solid var(--success);
+    background-color: #f0fdf4;
+  }
+
+  .card-info {
+    border-left: 4px solid var(--primary-light);
+    background-color: #eff6ff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 9.5pt;
+  }
+
+  th, td {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 8pt;
+    font-weight: 700;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-get { background-color: #dbeafe; color: #1e40af; }
+  .badge-post { background-color: #dcfce7; color: #15803d; }
+  .badge-put { background-color: #fef3c7; color: #92400e; }
+  .badge-delete { background-color: #fee2e2; color: #b91c1c; }
+  .badge-crit { background-color: #ef4444; color: #ffffff; }
+  .badge-warn { background-color: #f59e0b; color: #ffffff; }
+  .badge-auth { background-color: #6366f1; color: #ffffff; }
+
+  code {
+    font-family: "Cascadia Code", "Fira Code", Consolas, Courier, monospace;
+    font-size: 9pt;
+    background-color: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #0f172a;
+  }
+
+  pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 14px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 9pt;
+    font-family: "Cascadia Code", Consolas, monospace;
+    line-height: 1.45;
+    margin-bottom: 16px;
+  }
+
+  .diagram-box {
+    background: #f8fafc;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    font-family: monospace;
+    white-space: pre;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    color: #1e293b;
+    overflow-x: auto;
+  }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, #1e3a8a, #2563eb);
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 6px;
+    margin-top: 24px;
+    margin-bottom: 16px;
+  }
+
+  .module-header h2 {
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 14pt;
+  }
+
+  .module-tag {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .footer-note {
+    font-size: 8.5pt;
+    color: var(--text-muted);
+    text-align: center;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- COVER PAGE -->
+  <div class="cover-page">
+    <div class="cover-badge">Software Engineering & Architecture Specification</div>
+    <div class="cover-title">Smart Emergency Response & Ambulance Dispatch System</div>
+    <div class="cover-subtitle">Complete End-to-End System Manual, Modules Breakdown, Database Schema, REST API Directory & Algorithmic Dispatch Architecture</div>
+    
+    <div class="cover-meta">
+      <div class="meta-item">
+        <span>Platform & Framework</span>
+        <strong>.NET 8 Minimal API & React Native / Expo</strong>
+      </div>
+      <div class="meta-item">
+        <span>Database Engine</span>
+        <strong>Microsoft SQL Server / EF Core</strong>
+      </div>
+      <div class="meta-item">
+        <span>Security & Geolocation</span>
+        <strong>JWT RBAC & Haversine Geodesic Math</strong>
+      </div>
+      <div class="meta-item">
+        <span>Target Domains</span>
+        <strong>Emergency Healthcare & Fleet Logistics</strong>
+      </div>
+      <div class="meta-item">
+        <span>Document Status</span>
+        <strong>Complete Official Specification (v1.0)</strong>
+      </div>
+      <div class="meta-item">
+        <span>Author / Team</span>
+        <strong>Full Engineering Development Group</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- TABLE OF CONTENTS -->
+  <h1>Document Table of Contents</h1>
+  <div class="card card-info">
+    <ol style="margin-left: 20px; font-weight: 600; line-height: 1.8;">
+      <li><a href="#sec1">Section 1: Executive Summary & Problem Formulation</a></li>
+      <li><a href="#sec2">Section 2: High-Level System Architecture & Technology Stack</a></li>
+      <li><a href="#sec3">Section 3: Comprehensive Module-by-Module Specification</a>
+        <ul style="font-weight: normal; margin-left: 20px; line-height: 1.6;">
+          <li>3.1 Module 1: Citizen / Patient Emergency Access Portal (Zero-Login Flow)</li>
+          <li>3.2 Module 2: Hospital Command Center Portal (Fleet & Admissions)</li>
+          <li>3.3 Module 3: Ambulance Driver Telemetry & Navigation Mobile Console</li>
+          <li>3.4 Module 4: Central Dispatcher & Super-Admin Control Room</li>
+          <li>3.5 Module 5: Operations Archive & Historical Trip Audit Module</li>
+          <li>3.6 Module 6: Live Performance Analytics, Metrics & Reports Module</li>
+          <li>3.7 Module 7: Core Geospatial & Dispatching Engine (Haversine Optimization)</li>
+          <li>3.8 Module 8: Security, JWT Authentication & Role-Based Access Control (RBAC)</li>
+        </ul>
+      </li>
+      <li><a href="#sec4">Section 4: Database Design, Schema & Relational Dictionary</a></li>
+      <li><a href="#sec5">Section 5: Complete REST API Specification & Endpoint Directory</a></li>
+      <li><a href="#sec6">Section 6: Algorithmic Formulations & Mathematical Modeling</a></li>
+      <li><a href="#sec7">Section 7: Dispatch State Machine & Operational Lifecycle</a></li>
+      <li><a href="#sec8">Section 8: Deployment, Setup & Smoke Verification Guide</a></li>
+    </ol>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h1 id="sec1">1. Executive Summary & Problem Formulation</h1>
+  <p>
+    In emergency medicine, the concept of the <strong>"Golden Hour"</strong> dictates that rapid medical intervention within the first 60 minutes following severe trauma, cardiac arrest, or stroke drastically reduces mortality and long-term morbidity rates. Traditional emergency dispatching mechanisms face recurring friction points:
+  </p>
+  <ul>
+    <li><strong>Caller Anxiety & Verbal Miscommunication:</strong> Callers in distress struggle to provide accurate addresses, landmarks, or postal codes over cellular phone connections.</li>
+    <li><strong>Manual Dispatch Bottlenecks:</strong> Control centers manually contact individual hospitals and ambulance stations through telephone trees, delaying deployment.</li>
+    <li><strong>Siloed Fleet Visibility:</strong> Hospitals lack real-time visibility into mutual fleet availability and incoming trauma cases.</li>
+    <li><strong>Driver Navigation Disconnect:</strong> Ambulance drivers rely on oral phone instructions without exact GPS navigation coordinates to the patient.</li>
+  </ul>
+  <div class="card card-highlight">
+    <strong>The Core Solution:</strong> The <em>Smart Emergency Response & Ambulance Dispatch System</em> creates a real-time, bi-directional emergency triage network. Citizens trigger zero-login GPS-pinned distress calls in under 5 seconds. The nearest participating hospital receives immediate catchment alerts and automatically assigns the closest available ambulance through the spherical Haversine geodesic algorithm. Drivers broadcast real-time telemetry updates as they transition from transit to patient pickup to hospital emergency room handover.
+  </div>
+
+  <!-- SECTION 2 -->
+  <h1 id="sec2">2. High-Level System Architecture & Technology Stack</h1>
+  <p>
+    The system follows a modern, decoupled N-Tier client-server micro-architecture engineered for fault tolerance, rapid startup, and cross-platform accessibility.
+  </p>
+
+  <div class="diagram-box">
++-----------------------------------------------------------------------------------------+
+|                                    PRESENTATION TIER                                    |
+|                                                                                         |
+|  [ Citizen Web / Native ]     [ Hospital Command ]     [ Driver Console ]   [ Admin Room ]|
+|  * No-login GPS broadcast     * Local fleet triage     * Live GPS telemetry * Global CRUD|
+|  * Offline "Call 108" link    * 1-click dispatch       * Turn-by-turn route * Health KPIs|
+|  * Live ambulance tracking    * Hospital fleet CRUD    * State machine steps* Full audit |
+|                                                                                         |
+|   Technology: React Native / Expo SDK 57 (Cross-platform Web, Android, and iOS)        |
++--------------------------------------------+--------------------------------------------+
+                                             | HTTP / REST (JSON + JWT Bearer Auth)
+                                             v
++-----------------------------------------------------------------------------------------+
+|                                   APPLICATION API TIER                                  |
+|                                                                                         |
+|                      ASP.NET Core (.NET 8) Minimal Web API Pipeline                     |
+|                                                                                         |
+|  [ Middleware Pipeline ]   -->   [ JWT Authentication ]   -->   [ Policy Authorization ]|
+|  * CORS Any-Origin               * HS256 Token Validation       * AdminOnly, Hospital,  |
+|  * Global Exception Handler      * Claims Injection             * DriverOnly policies   |
+|                                                                                         |
+|  [ Core Functional Services ]                                                           |
+|  * Emergency Request Ingestion       * Geospatial Haversine Nearest Matching Algorithm  |
+|  * Hospital Catchment Area Filter    * Fleet Telemetry GPS Tracker & Status Updater     |
+|  * Dispatch State Transition Engine  * Simulated 108 Emergency Call Logger              |
++--------------------------------------------+--------------------------------------------+
+                                             | Entity Framework Core (ORM)
+                                             v
++-----------------------------------------------------------------------------------------+
+|                                    DATA & STORAGE TIER                                  |
+|                                                                                         |
+|  Primary: Microsoft SQL Server (SQLEXPRESS / Production)                                |
+|  Fallback: EF Core In-Memory Database (Automatic local developer fallback)             |
+|                                                                                         |
+|  Tables: [Users]  [Hospitals]  [Ambulances]  [EmergencyRequests]  [Dispatches]  [Calls] |
++-----------------------------------------------------------------------------------------+
+  </div>
+
+  <h2>Technology Stack Matrix</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Technology</th>
+        <th>Version / Specs</th>
+        <th>Architectural Justification</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Mobile / Native</strong></td>
+        <td>React Native / Expo SDK</td>
+        <td>SDK 51/57, CameraView, Location</td>
+        <td>Unified code base for native Android/iOS mobile emergency apps and QR-pairing.</td>
+      </tr>
+      <tr>
+        <td><strong>Web Frontend</strong></td>
+        <td>React 18 & Leaflet Maps</td>
+        <td>ES6+, HTML5 Geolocation, Leaflet CSS</td>
+        <td>Zero-lag desktop control room with interactive OpenStreetMap geospatial tracking.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend Framework</strong></td>
+        <td>ASP.NET Core Minimal APIs</td>
+        <td>.NET 8.0 C#</td>
+        <td>Minimal overhead, sub-millisecond route handling, native asynchronous I/O (`async/await`).</td>
+      </tr>
+      <tr>
+        <td><strong>Database Engine</strong></td>
+        <td>Microsoft SQL Server / EF Core</td>
+        <td>SQL Server 2019+ / EF Core 8.0</td>
+        <td>Relational integrity, foreign key constraints, ACID compliance, and migration tracking.</td>
+      </tr>
+      <tr>
+        <td><strong>Authentication</strong></td>
+        <td>JWT Bearer Tokens</td>
+        <td>System.IdentityModel.Tokens (HS256)</td>
+        <td>Stateless authorization with embedded claims (`Role`, `hospitalId`, `ambulanceId`).</td>
+      </tr>
+      <tr>
+        <td><strong>Geodesic Engine</strong></td>
+        <td>Spherical Haversine Algorithm</td>
+        <td>Pure C# Trigonometric Implementation</td>
+        <td>Instant geodesic distance calculations without external paid API rate limits or latency.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 3 -->
+  <h1 id="sec3">3. Comprehensive Module-by-Module Specification</h1>
+  <p>
+    The system is decomposed into 8 interconnected functional modules. Each module encapsulates dedicated business logic, user interface views, data models, and API contracts.
+  </p>
+
+  <!-- MODULE 1 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.1 Module 1: Citizen / Patient Emergency Access Portal</h2>
+      <span class="module-tag">Public / No Login</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/Emergency.js</code>, <code>frontend/App.js</code> (Native Mobile), <code>backend/Program.cs</code> (<code>/api/emergency</code>).
+    </p>
+    <p>
+      <strong>Purpose & Philosophy:</strong> When a medical catastrophe occurs, users cannot be hindered by registration screens, password prompts, or email verifications. This module provides a friction-free, instantaneous gateway to emergency dispatch.
+    </p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Key Functional Capabilities</h3>
+        <ul>
+          <li><strong>Single-Tap GPS Acquisition:</strong> Queries device GPS sensors (via HTML5 Geolocation API on web or <code>expo-location</code> on native) to obtain precise Latitude and Longitude coordinates.</li>
+          <li><strong>Offline "Call 108" Dial Link:</strong> Built-in <code>tel:108</code> protocol trigger that directly opens the native phone dialer to reach national emergency services even when mobile internet data fails.</li>
+          <li><strong>Triage Categorization:</strong> Rapid radio selectors for Emergency Type (<em>Accident, Cardiac, Trauma, Respiratory, Maternal</em>) and Priority level (<em>Critical, Urgent, Normal</em>).</li>
+          <li><strong>Live Ambulance Tracker:</strong> Once submitted, polls the backend (every 5 seconds) to detect hospital acceptance, displaying vehicle license plate, driver phone, and live vehicle location on Leaflet map.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Data Inputs & Outputs</h3>
+        <ul>
+          <li><strong>User Inputs:</strong> Patient Name, Phone Number, Emergency Type, Priority, GPS Coordinates (auto-filled).</li>
+          <li><strong>Output / Feedback:</strong> Unique <code>RequestId</code>, status tracker badge (<em>Pending -> Accepted -> En Route -> Arrived</em>), ambulance contact details, and hospital name.</li>
+          <li><strong>Native Feature:</strong> Camera QR Code scanner (<code>CameraView</code>) to auto-pair mobile apps to the hospital local LAN server.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 2 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.2 Module 2: Hospital Command Center Portal</h2>
+      <span class="module-tag">Role: Hospital</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/HospitalView.js</code>, <code>backend/Program.cs</code> (<code>/api/hospitals</code>, <code>/api/emergency/available-for-hospital/{id}</code>, <code>/api/emergency/{id}/accept</code>).
+    </p>
+    <p>
+      <strong>Purpose & Philosophy:</strong> Empowers hospital staff to monitor incoming distress calls within their geographic catchment area and dispatch their private or affiliated ambulance fleet.
+    </p>
+    <div class="card">
+      <h3>Key Functional Capabilities</h3>
+      <ol>
+        <li><strong>Hospital Authentication:</strong> Secure passwordless token generation verifying registered hospital contact telephone number (claims injected: <code>Role: Hospital</code>, <code>hospitalId: X</code>).</li>
+        <li><strong>Geofenced Emergency Feed:</strong> Backend automatically filters all active pending emergency requests. Using the Haversine formula, it only serves requests whose nearest hospital is <em>this</em> facility, preventing multi-hospital dispatch chaos.</li>
+        <li><strong>One-Click Dispatch Acceptance:</strong> Clicking "Accept Emergency" triggers an automated backend routine:
+          <ul>
+            <li>Finds the nearest <code>Available</code> ambulance belonging exclusively to this hospital.</li>
+            <li>Creates a new record in <code>Dispatches</code> table linking the Request, Ambulance, and Hospital.</li>
+            <li>Transitions Request status to <code>Accepted by Hospital</code> and Ambulance status to <code>Assigned</code>.</li>
+          </ul>
+        </li>
+        <li><strong>Hospital Fleet Management:</strong> Add new ambulances (Vehicle Number, Driver Name, Driver Phone, Vehicle Type), view live fleet availability, and decommission units.</li>
+        <li><strong>Active Mission Tracking:</strong> Inspect assigned runs, see patient pickup location on map, and prepare emergency room staff prior to patient arrival.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- MODULE 3 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.3 Module 3: Ambulance Driver Telemetry & Navigation Mobile Console</h2>
+      <span class="module-tag">Role: Driver</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/DriverView.js</code>, <code>backend/Program.cs</code> (<code>/api/auth/driver-login</code>, <code>/api/ambulances/{id}/location</code>, <code>/api/dispatch/{id}</code>).
+    </p>
+    <p>
+      <strong>Purpose & Philosophy:</strong> Designed specifically for in-vehicle mounted tablets or driver mobile phones. Provides clear, high-contrast operational status and automated real-time GPS telemetry broadcasting.
+    </p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Continuous GPS Telemetry</h3>
+        <p>
+          Mounts a background <code>navigator.geolocation.watchPosition</code> worker that triggers HTTP PUT requests to <code>/api/ambulances/{id}/location</code> every few seconds. This keeps the centralized system and patient tracking maps accurate within meters.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Lifecycle State Controller</h3>
+        <p>
+          Drivers interact with large, tactile buttons that progress the dispatch state:
+          <br><code>Assigned</code> &rarr; <code>En Route</code> &rarr; <code>Arrived at Scene</code> (records ArrivalTime) &rarr; <code>Transporting</code> &rarr; <code>Completed</code> (records CompletionTime, releases ambulance back to "Available").
+        </p>
+      </div>
+    </div>
+    <div class="card card-info">
+      <strong>Driver Mission HUD:</strong> Displays patient emergency priority badge (Critical / Urgent / Normal), patient contact phone with direct click-to-call link, address/landmark notes, patient GPS coordinates on interactive Leaflet map, and assigned destination hospital name.
+    </div>
+  </div>
+
+  <!-- MODULE 4 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.4 Module 4: Central Dispatcher & Super-Admin Control Room</h2>
+      <span class="module-tag">Role: Admin</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/AdminDashboard.js</code>, <code>frontend/src/components/AdminLogin.js</code>, <code>backend/Program.cs</code>.
+    </p>
+    <p>
+      <strong>Purpose:</strong> Complete administrative oversight of the entire city or state emergency response infrastructure.
+    </p>
+    <div class="card">
+      <h3>Administrative Capabilities:</h3>
+      <ul>
+        <li><strong>Fleet Registry CRUD:</strong> Full create, read, update, and delete access across all ambulances in the region, including manual status overrides (e.g., placing vehicle in "Maintenance").</li>
+        <li><strong>Hospital Network Directory:</strong> Register new healthcare facilities with address, contact numbers, and precise GPS lat/lng coordinates.</li>
+        <li><strong>Manual Dispatch Override:</strong> In high-casualty incidents or inter-hospital transfers, administrators can manually force a dispatch assigning any available ambulance to any pending request.</li>
+        <li><strong>System Diagnostics & Data Dump:</strong> Live overview of database entity counts via <code>/api/admin/summary</code> and full JSON snapshot export via <code>/api/debug/dump</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- MODULE 5 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.5 Module 5: Operations Archive & Historical Trip Audit Module</h2>
+      <span class="module-tag">Operational Audit</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/HistoryView.js</code>, <code>backend/Program.cs</code> (<code>/api/emergency</code>, <code>/api/dispatch</code>, <code>/api/calls</code>).
+    </p>
+    <div class="card">
+      <h3>Key Audit Features:</h3>
+      <ul>
+        <li><strong>Universal Search Engine:</strong> Instant client-side text filtering indexing across Patient Name, Contact Phone, Incident Address, and unique Request ID.</li>
+        <li><strong>Status Facet Filtering:</strong> Filter archive by trip outcome: <em>All, Pending, Accepted by Hospital, Assigned, En Route, Completed</em>.</li>
+        <li><strong>Chronological Turnaround Milestones:</strong> Records exact timestamps for each phase of the emergency:
+          <ul>
+            <li><code>RequestTime</code> (when the citizen hit submit)</li>
+            <li><code>AssignedTime</code> (when hospital dispatched ambulance)</li>
+            <li><code>ArrivalTime</code> (when ambulance arrived at patient location)</li>
+            <li><code>CompletionTime</code> (when patient was safely admitted to hospital ER)</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- MODULE 6 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.6 Module 6: Live Performance Analytics, Metrics & Reports Module</h2>
+      <span class="module-tag">Executive Intelligence</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>frontend/src/components/ReportsView.js</code>, <code>backend/Program.cs</code> (<code>/api/admin/summary</code>).
+    </p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Core KPI Cards</h3>
+        <ul>
+          <li><strong>Total Request Volume:</strong> Cumulative count of all emergency calls ingested since system inception.</li>
+          <li><strong>Active Dispatches:</strong> Currently engaged ambulances in transit or treating patients.</li>
+          <li><strong>Mission Completion Rate:</strong> Percentage formula: <code>(Completed Dispatches / Total Dispatches) * 100</code>.</li>
+          <li><strong>Priority Alerts:</strong> Cumulative total of High, Critical, and Urgent trauma requests.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Resource Health & Demand Mix</h3>
+        <ul>
+          <li><strong>Demand Distribution:</strong> Dynamic bar chart breakdowns indicating the proportion of Critical vs Urgent vs Normal medical distress.</li>
+          <li><strong>Fleet Availability Gauge:</strong> Live ratio of Available ambulances against total registered vehicles.</li>
+          <li><strong>Hospital Network Status:</strong> Count of actively accepting Emergency Departments versus offline facilities.</li>
+          <li><strong>Telephony Records:</strong> Audit of simulated telephone calls logged via <code>/api/call</code>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 7 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.7 Module 7: Core Geospatial & Dispatching Engine</h2>
+      <span class="module-tag">Mathematical Engine</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>backend/Program.cs</code> (Haversine implementation, <code>/api/ambulances/nearest</code>, <code>/api/hospitals/nearest</code>).
+    </p>
+    <p>
+      The dispatching engine computes the great-circle geodesic distance between two points on the Earth's surface using latitude and longitude coordinates. This eliminates dependency on external paid map APIs for distance heuristics.
+    </p>
+    <div class="card card-info">
+      <h3>Spherical Haversine Mathematical Derivation:</h3>
+      <p>Given two geographic points $P_1(\phi_1, \lambda_1)$ and $P_2(\phi_2, \lambda_2)$, where $\phi$ is latitude in radians and $\lambda$ is longitude in radians:</p>
+      <pre>
+Δφ = (lat2 - lat1) * π / 180
+Δλ = (lon2 - lon1) * π / 180
+a  = sin²(Δφ / 2) + cos(φ1) * cos(φ2) * sin²(Δλ / 2)
+c  = 2 * atan2(√a, √(1 - a))
+d  = R * c  (where Earth mean radius R = 6,371,000 meters)
+      </pre>
+      <p><strong>C# Optimization:</strong> The backend computes <code>Distance(lat1, lon1, lat2, lon2)</code> in pure double-precision floating-point arithmetic. LINQ <code>OrderBy(a => Distance(...)).FirstOrDefault()</code> executes within microseconds over in-memory or cached fleets.</p>
+    </div>
+  </div>
+
+  <!-- MODULE 8 -->
+  <div class="no-break">
+    <div class="module-header">
+      <h2>3.8 Module 8: Security, Authentication & Role-Based Access Control</h2>
+      <span class="module-tag">Security & Identity</span>
+    </div>
+    <p>
+      <strong>Component Files:</strong> <code>backend/Services/AuthUtils.cs</code>, <code>frontend/src/auth.js</code>, <code>backend/Program.cs</code>.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Authentication Method</th>
+          <th>Claims Embedded in JWT</th>
+          <th>Authorization Scope</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Admin</strong></td>
+          <td>Email / Username + Password (PBKDF2 Hash)</td>
+          <td><code>Role: "Admin"</code>, <code>userId</code>, <code>Name</code></td>
+          <td>Unrestricted access to all endpoints, fleet CRUD, manual dispatch, debug dump.</td>
+        </tr>
+        <tr>
+          <td><strong>Hospital</strong></td>
+          <td>Hospital Contact Phone + Hospital Name</td>
+          <td><code>Role: "Hospital"</code>, <code>hospitalId</code>, <code>Name</code></td>
+          <td>Scoped strictly to ambulances and pending requests within their own <code>HospitalId</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Driver</strong></td>
+          <td>Driver Phone + Vehicle Registration Number</td>
+          <td><code>Role: "Driver"</code>, <code>ambulanceId</code>, <code>hospitalId</code></td>
+          <td>Restricted to mutating their assigned dispatch state and pushing vehicle GPS coordinates.</td>
+        </tr>
+        <tr>
+          <td><strong>Citizen / Public</strong></td>
+          <td>No Login (Anonymous Access)</td>
+          <td>None</td>
+          <td>Submit emergency requests, check single request status, read nearest fleet stats.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 4 -->
+  <h1 id="sec4">4. Database Design, Schema & Relational Dictionary</h1>
+  <p>
+    The database architecture is designed with high normalization to eliminate redundancy while preserving referential integrity across the medical dispatch lifecycle.
+  </p>
+
+  <div class="diagram-box">
+                      +-------------------+
+                      |     Hospitals     |
+                      +-------------------+
+                      | PK  HospitalId    |
+                      |     HospitalName  |
+                      |     Address       |
+                      |     Latitude      |
+                      |     Longitude     |
+                      |     ContactNumber |
+                      |     Status        |
+                      +---------+---------+
+                                | 1
+                                |
+             +------------------+------------------+
+             | 1..*                                | 1..*
+             v                                     v
+   +-------------------+                 +-------------------+
+   |       Users       |                 |    Ambulances     |
+   +-------------------+                 +-------------------+
+   | PK  UserId        |                 | PK  AmbulanceId   |
+   | FK  HospitalId    |                 | FK  HospitalId    |
+   |     Name          |                 |     VehicleNumber |
+   |     Phone         |                 |     DriverName    |
+   |     Email         |                 |     DriverPhone   |
+   |     PasswordHash  |                 |     Type          |
+   |     Role          |                 |     Latitude      |
+   +-------------------+                 |     Longitude     |
+                                         |     Status        |
+                                         +---------+---------+
+                                                   | 1
+                                                   |
++-----------------------+                          |
+|   EmergencyRequests   |                          |
++-----------------------+                          |
+| PK  RequestId         |                          |
+|     PatientName       |                          |
+|     PatientPhone      |                          |
+|     EmergencyType     |                          |
+|     Priority          |                          |
+|     Latitude          |                          |
+|     Longitude         |                          |
+|     Address           |                          |
+|     RequestTime       |                          |
+|     Status            |                          |
++-----------+-----------+                          |
+            | 1                                    | 1..*
+            +------------------+  +----------------+
+                               |  |
+                               v  v
+                     +-------------------+
+                     |    Dispatches     |
+                     +-------------------+
+                     | PK  DispatchId    |
+                     | FK  RequestId     |
+                     | FK  AmbulanceId   |
+                     | FK  HospitalId    |
+                     |     AssignedTime  |
+                     |     ArrivalTime   |
+                     |     CompletionTime|
+                     |     Status        |
+                     +---------+---------+
+                               | 1
+                               | 0..*
+                               v
+                     +-------------------+
+                     |     CallLogs      |
+                     +-------------------+
+                     | PK  CallLogId     |
+                     | FK  DispatchId    |
+                     |     PhoneNumber   |
+                     |     Timestamp     |
+                     |     Note          |
+                     +-------------------+
+  </div>
+
+  <h2>Data Dictionary & Entity Attribute Specifications</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Table</th>
+        <th>Field Name</th>
+        <th>Data Type</th>
+        <th>Constraints</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Users -->
+      <tr>
+        <td rowspan="7"><strong>Users</strong></td>
+        <td><code>UserId</code></td>
+        <td>INT</td>
+        <td>PK, IDENTITY</td>
+        <td>Unique user identity identifier.</td>
+      </tr>
+      <tr>
+        <td><code>HospitalId</code></td>
+        <td>INT</td>
+        <td>NULL, FK</td>
+        <td>Associated hospital for hospital operators.</td>
+      </tr>
+      <tr>
+        <td><code>Name</code></td>
+        <td>NVARCHAR(200)</td>
+        <td>NOT NULL</td>
+        <td>Full user or administrator name.</td>
+      </tr>
+      <tr>
+        <td><code>Phone</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NULL</td>
+        <td>Contact telephone number.</td>
+      </tr>
+      <tr>
+        <td><code>Email</code></td>
+        <td>NVARCHAR(200)</td>
+        <td>NULL</td>
+        <td>Unique login email identifier.</td>
+      </tr>
+      <tr>
+        <td><code>PasswordHash</code></td>
+        <td>NVARCHAR(500)</td>
+        <td>NOT NULL</td>
+        <td>Salted PBKDF2/HMACSHA256 password hash.</td>
+      </tr>
+      <tr>
+        <td><code>Role</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Authorization role (Admin, Hospital, Driver).</td>
+      </tr>
+
+      <!-- Hospitals -->
+      <tr>
+        <td rowspan="7"><strong>Hospitals</strong></td>
+        <td><code>HospitalId</code></td>
+        <td>INT</td>
+        <td>PK, IDENTITY</td>
+        <td>Unique hospital identifier.</td>
+      </tr>
+      <tr>
+        <td><code>HospitalName</code></td>
+        <td>NVARCHAR(200)</td>
+        <td>NOT NULL</td>
+        <td>Official facility or trauma center name.</td>
+      </tr>
+      <tr>
+        <td><code>Address</code></td>
+        <td>NVARCHAR(500)</td>
+        <td>NULL</td>
+        <td>Physical civic street address.</td>
+      </tr>
+      <tr>
+        <td><code>Latitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>WGS84 GPS latitude (-90 to +90).</td>
+      </tr>
+      <tr>
+        <td><code>Longitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>WGS84 GPS longitude (-180 to +180).</td>
+      </tr>
+      <tr>
+        <td><code>ContactNumber</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Direct line for hospital dispatch desk.</td>
+      </tr>
+      <tr>
+        <td><code>Status</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Operational status (Open, Closed, Diverting).</td>
+      </tr>
+
+      <!-- Ambulances -->
+      <tr>
+        <td rowspan="9"><strong>Ambulances</strong></td>
+        <td><code>AmbulanceId</code></td>
+        <td>INT</td>
+        <td>PK, IDENTITY</td>
+        <td>Unique ambulance fleet identifier.</td>
+      </tr>
+      <tr>
+        <td><code>HospitalId</code></td>
+        <td>INT</td>
+        <td>NULL, FK</td>
+        <td>Managing hospital facility (ON DELETE SET NULL).</td>
+      </tr>
+      <tr>
+        <td><code>VehicleNumber</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Official license registration number plate.</td>
+      </tr>
+      <tr>
+        <td><code>DriverName</code></td>
+        <td>NVARCHAR(200)</td>
+        <td>NOT NULL</td>
+        <td>Assigned primary paramedic or driver name.</td>
+      </tr>
+      <tr>
+        <td><code>DriverPhone</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Driver contact number used for mobile login.</td>
+      </tr>
+      <tr>
+        <td><code>Type</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Vehicle capability (Basic, ALS, Cardiac, Neonatal).</td>
+      </tr>
+      <tr>
+        <td><code>Latitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>Current live GPS latitude.</td>
+      </tr>
+      <tr>
+        <td><code>Longitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>Current live GPS longitude.</td>
+      </tr>
+      <tr>
+        <td><code>Status</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>State: Available, Assigned, Maintenance.</td>
+      </tr>
+
+      <!-- EmergencyRequests -->
+      <tr>
+        <td rowspan="10"><strong>EmergencyRequests</strong></td>
+        <td><code>RequestId</code></td>
+        <td>INT</td>
+        <td>PK, IDENTITY</td>
+        <td>Unique emergency distress case number.</td>
+      </tr>
+      <tr>
+        <td><code>PatientName</code></td>
+        <td>NVARCHAR(200)</td>
+        <td>NOT NULL</td>
+        <td>Name of the victim or reporting citizen.</td>
+      </tr>
+      <tr>
+        <td><code>PatientPhone</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Callback number for incoming verification.</td>
+      </tr>
+      <tr>
+        <td><code>EmergencyType</code></td>
+        <td>NVARCHAR(100)</td>
+        <td>NOT NULL</td>
+        <td>Medical nature (Accident, Cardiac, Trauma, etc.).</td>
+      </tr>
+      <tr>
+        <td><code>Priority</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Triage priority (Critical, Urgent, Normal).</td>
+      </tr>
+      <tr>
+        <td><code>Latitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>Patient pickup GPS latitude.</td>
+      </tr>
+      <tr>
+        <td><code>Longitude</code></td>
+        <td>FLOAT</td>
+        <td>NOT NULL</td>
+        <td>Patient pickup GPS longitude.</td>
+      </tr>
+      <tr>
+        <td><code>Address</code></td>
+        <td>NVARCHAR(500)</td>
+        <td>NULL</td>
+        <td>Civic address or nearby landmark notes.</td>
+      </tr>
+      <tr>
+        <td><code>RequestTime</code></td>
+        <td>DATETIME2</td>
+        <td>NOT NULL</td>
+        <td>UTC timestamp when emergency was initiated.</td>
+      </tr>
+      <tr>
+        <td><code>Status</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Status: Pending, Accepted by Hospital, Completed.</td>
+      </tr>
+
+      <!-- Dispatches -->
+      <tr>
+        <td rowspan="8"><strong>Dispatches</strong></td>
+        <td><code>DispatchId</code></td>
+        <td>INT</td>
+        <td>PK, IDENTITY</td>
+        <td>Unique dispatch operation record ID.</td>
+      </tr>
+      <tr>
+        <td><code>RequestId</code></td>
+        <td>INT</td>
+        <td>FK</td>
+        <td>Foreign reference to EmergencyRequests.</td>
+      </tr>
+      <tr>
+        <td><code>AmbulanceId</code></td>
+        <td>INT</td>
+        <td>FK</td>
+        <td>Foreign reference to Ambulances.</td>
+      </tr>
+      <tr>
+        <td><code>HospitalId</code></td>
+        <td>INT</td>
+        <td>FK</td>
+        <td>Foreign reference to Hospitals.</td>
+      </tr>
+      <tr>
+        <td><code>AssignedTime</code></td>
+        <td>DATETIME2</td>
+        <td>NOT NULL</td>
+        <td>UTC timestamp when unit was dispatched.</td>
+      </tr>
+      <tr>
+        <td><code>ArrivalTime</code></td>
+        <td>DATETIME2</td>
+        <td>NULL</td>
+        <td>UTC timestamp when unit reached scene.</td>
+      </tr>
+      <tr>
+        <td><code>CompletionTime</code></td>
+        <td>DATETIME2</td>
+        <td>NULL</td>
+        <td>UTC timestamp when patient reached ER.</td>
+      </tr>
+      <tr>
+        <td><code>Status</code></td>
+        <td>NVARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>Assigned, En Route, Arrived, Completed.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 5 -->
+  <h1 id="sec5">5. Complete REST API Specification & Endpoint Directory</h1>
+  <p>
+    The backend exposes a lightweight, high-performance REST API developed in ASP.NET Core Minimal APIs. All endpoints return standard JSON and adhere to conventional HTTP status codes.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Endpoint URI</th>
+        <th>Authorization</th>
+        <th>Payload / Parameters</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/health</code></td>
+        <td>Public</td>
+        <td>None</td>
+        <td>System health heartbeat check.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/auth/login</code></td>
+        <td>Public</td>
+        <td><code>{ email, password }</code></td>
+        <td>Admin authentication generating JWT bearer token.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/auth/driver-login</code></td>
+        <td>Public</td>
+        <td><code>{ phone, vehicleNumber }</code></td>
+        <td>Driver authentication generating JWT token with ambulance claim.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/auth/hospital-login</code></td>
+        <td>Public</td>
+        <td><code>{ phone, hospitalName }</code></td>
+        <td>Hospital authentication generating JWT token with hospital claim.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/emergency</code></td>
+        <td>Public / User</td>
+        <td>None</td>
+        <td>List all emergency requests in the system.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/emergency/{id}</code></td>
+        <td>Public / User</td>
+        <td><code>id</code> (URL param)</td>
+        <td>Retrieve single emergency request by ID.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/emergency</code></td>
+        <td>Public</td>
+        <td><code>{ patientName, patientPhone, emergencyType, priority, latitude, longitude, address }</code></td>
+        <td>Submit new citizen emergency distress request.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/emergency/available-for-hospital/{hospitalId}</code></td>
+        <td>Public / Hospital</td>
+        <td><code>hospitalId</code> (URL param)</td>
+        <td>List pending emergencies within this hospital's catchment area.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/emergency/{id}/accept</code></td>
+        <td><span class="badge badge-auth">Hospital</span></td>
+        <td><code>hospitalId</code> (Query param)</td>
+        <td>Accepts emergency, auto-assigns nearest ambulance.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/ambulances</code></td>
+        <td>Public / Admin</td>
+        <td>None</td>
+        <td>List all registered ambulances.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/ambulances/{id}</code></td>
+        <td>Public / User</td>
+        <td><code>id</code> (URL param)</td>
+        <td>Get detailed ambulance records by ID.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/ambulances/nearest</code></td>
+        <td>Public</td>
+        <td><code>?lat=X&amp;lng=Y</code></td>
+        <td>Calculates and returns nearest available ambulance via Haversine.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/hospitals/{id}/ambulances</code></td>
+        <td><span class="badge badge-auth">Hospital / Admin</span></td>
+        <td><code>id</code> (URL param)</td>
+        <td>Retrieve fleet assigned to specific hospital.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/ambulances</code></td>
+        <td><span class="badge badge-auth">Hospital / Admin</span></td>
+        <td><code>{ hospitalId, vehicleNumber, driverName, driverPhone, type, latitude, longitude, status }</code></td>
+        <td>Register a new ambulance to a hospital fleet.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-put">PUT</span></td>
+        <td><code>/api/ambulances/{id}</code></td>
+        <td><span class="badge badge-auth">Hospital / Admin</span></td>
+        <td><code>Ambulance JSON object</code></td>
+        <td>Update ambulance specifications or driver info.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-put">PUT</span></td>
+        <td><code>/api/ambulances/{id}/location</code></td>
+        <td><span class="badge badge-auth">Driver</span></td>
+        <td><code>?latitude=X&amp;longitude=Y</code></td>
+        <td>Live driver telemetry endpoint pushing vehicle GPS.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-delete">DELETE</span></td>
+        <td><code>/api/ambulances/{id}</code></td>
+        <td><span class="badge badge-auth">Hospital / Admin</span></td>
+        <td><code>id</code> (URL param)</td>
+        <td>Decommission ambulance (prohibited if active dispatch exists).</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/hospitals</code></td>
+        <td>Public</td>
+        <td>None</td>
+        <td>List all registered hospitals.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/hospitals/nearest</code></td>
+        <td>Public</td>
+        <td><code>?lat=X&amp;lng=Y</code></td>
+        <td>Find nearest hospital facility to coordinates.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/hospitals</code></td>
+        <td><span class="badge badge-auth">Admin</span></td>
+        <td><code>{ hospitalName, address, latitude, longitude, contactNumber, status }</code></td>
+        <td>Register a new hospital in the directory.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/dispatch</code></td>
+        <td><span class="badge badge-auth">Admin</span></td>
+        <td>None</td>
+        <td>List all active and past dispatch missions.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td><code>/api/dispatch</code></td>
+        <td><span class="badge badge-auth">Admin</span></td>
+        <td><code>{ requestId, ambulanceId, hospitalId }</code></td>
+        <td>Manual administrative dispatch creation.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-put">PUT</span></td>
+        <td><code>/api/dispatch/{id}</code></td>
+        <td><span class="badge badge-auth">Driver / Hospital / Admin</span></td>
+        <td><code>{ status, arrivalTime, completionTime }</code></td>
+        <td>Update dispatch state (En Route, Arrived, Completed).</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/dispatch/request/{requestId}</code></td>
+        <td>Public</td>
+        <td><code>requestId</code> (URL param)</td>
+        <td>Get dispatch assignment linked to an emergency request.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/dispatch/ambulance/{id}</code></td>
+        <td><span class="badge badge-auth">Driver / Admin</span></td>
+        <td><code>id</code> (AmbulanceId)</td>
+        <td>List dispatches assigned to specific vehicle.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/dispatch/hospital/{id}</code></td>
+        <td><span class="badge badge-auth">Hospital / Admin</span></td>
+        <td><code>id</code> (HospitalId)</td>
+        <td>List dispatches originating from specific hospital.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/admin/summary</code></td>
+        <td><span class="badge badge-auth">Admin</span></td>
+        <td>None</td>
+        <td>Aggregated KPI metrics for dashboard reporting.</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td><code>/api/debug/dump</code></td>
+        <td><span class="badge badge-auth">Admin</span></td>
+        <td>None</td>
+        <td>Full relational table export for monitoring and debugging.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 6 & 7 -->
+  <h1 id="sec6">6. Algorithmic Formulations & Mathematical Modeling</h1>
+  <p>
+    The dispatch intelligence hinges on two algorithmic pipelines: <strong>Geodesic Proximity Optimization</strong> and <strong>Hospital Catchment Partitioning</strong>.
+  </p>
+
+  <h2>6.1 Great-Circle Geodesic Distance (Haversine)</h2>
+  <p>
+    Standard Euclidean distance ($\sqrt{\Delta x^2 + \Delta y^2}$) produces severe spherical distortion over geographical coordinates. The Haversine formulation calculates great-circle distances over Earth's spherical geoid:
+  </p>
+  <div class="card">
+    <p>Let $R = 6371 \times 10^3\text{ meters}$ (mean radius of Earth). For coordinates $(\text{lat}_1, \text{lon}_1)$ and $(\text{lat}_2, \text{lon}_2)$ converted to radians:</p>
+    $$\Delta\phi = (\text{lat}_2 - \text{lat}_1) \cdot \frac{\pi}{180}, \quad \Delta\lambda = (\text{lon}_2 - \text{lon}_1) \cdot \frac{\pi}{180}$$
+    $$a = \sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)$$
+    $$c = 2 \cdot \text{atan2}\left(\sqrt{a}, \sqrt{1-a}\right)$$
+    $$d = R \cdot c$$
+  </div>
+
+  <h2>6.2 Hospital Catchment Partitioning Algorithm</h2>
+  <p>
+    To prevent multiple hospitals from simultaneously deploying ambulances to the same victim, the system executes an automated spatial partition when querying pending cases:
+  </p>
+  <div class="diagram-box">
+Algorithm CatchmentPartition(Hospital H_current, List&lt;Hospital&gt; OpenHospitals, List&lt;EmergencyRequest&gt; PendingRequests):
+  Initialize AvailableList = []
+  
+  For each Request R in PendingRequests:
+      NearestHospital = null
+      MinDistance = +Infinity
+      
+      For each Hospital H in OpenHospitals:
+          Dist = Haversine(R.Latitude, R.Longitude, H.Latitude, H.Longitude)
+          If Dist < MinDistance Then:
+              MinDistance = Dist
+              NearestHospital = H
+              
+      // Only include if THIS hospital is the absolute closest facility to the patient
+      If NearestHospital.HospitalId == H_current.HospitalId Then:
+          AvailableList.Add(R)
+          
+  Sort AvailableList ascending by Haversine(H_current, R)
+  Return AvailableList
+  </div>
+
+  <h1 id="sec7">7. Dispatch State Machine & Operational Lifecycle</h1>
+  <p>
+    An emergency incident progresses through a strict, deterministic finite state machine (FSM). State changes are validated across relational entities to guarantee operational consistency.
+  </p>
+
+  <div class="diagram-box">
+  [ CITIZEN DISTRESS ]
+           |
+           v
+   ( Status: Pending ) <---------------- Patient submits GPS & triage category
+           |
+           | Hospital accepts request via /api/emergency/{id}/accept
+           v
+  ( Status: Accepted by Hospital )
+  ( Ambulance: Assigned ) <----------- Nearest available hospital ambulance paired
+           |
+           | Driver taps "Start Route" in mobile console
+           v
+     ( En Route ) <------------------- Driver navigating to patient; continuous GPS sync
+           |
+           | Driver taps "Arrived at Scene"
+           v
+( Arrived at Scene ) <---------------- ArrivalTime timestamp recorded in DB
+           |
+           | Patient stabilized; transporting to trauma center
+           v
+   ( Transporting )
+           |
+           | Patient admitted to Emergency Room; Driver taps "Complete"
+           v
+    ( Completed ) <------------------- CompletionTime timestamp recorded;
+                                       Ambulance reset to "Available"
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 8 -->
+  <h1 id="sec8">8. Deployment, Setup & Smoke Verification Guide</h1>
+  <p>
+    The system is pre-configured to run out of the box in development environments with zero setup friction, featuring automatic database fallback and dual frontend runtimes.
+  </p>
+
+  <h2>8.1 Backend Configuration (.NET Minimal API)</h2>
+  <div class="card">
+    <p>1. Open a PowerShell terminal and navigate to the backend directory:</p>
+    <pre>cd d:\new_project\backend
+dotnet restore
+dotnet build</pre>
+    <p>2. Run database migrations (optional; if SQL Server is absent, the backend automatically activates the In-Memory database provider):</p>
+    <pre>dotnet ef database update</pre>
+    <p>3. Start the backend server (binds to <code>http://0.0.0.0:5000</code> to allow mobile LAN devices to connect):</p>
+    <pre>dotnet run</pre>
+    <p>4. Verify Swagger OpenAPI documentation at: <code>http://localhost:5000/swagger</code></p>
+  </div>
+
+  <h2>8.2 Frontend Configuration (React / Expo)</h2>
+  <div class="card">
+    <p>1. Open a second PowerShell terminal in the frontend directory:</p>
+    <pre>cd d:\new_project\frontend
+npm install
+npm start</pre>
+    <p>2. Press <code>w</code> in the Expo terminal to launch the <strong>Desktop Command Center Web Console</strong> in your default web browser (at <code>http://localhost:8081</code>).</p>
+    <p>3. For mobile testing on physical Android or iOS phones, open <strong>Expo Go</strong> and scan the terminal QR code, or use the camera QR scanner inside the app to pair with your computer's IP address.</p>
+  </div>
+
+  <h2>8.3 Automated Smoke Verification Script</h2>
+  <div class="card card-success">
+    <p>The repository includes an end-to-end automated PowerShell integration smoke test located at <code>tests/smoke_test.ps1</code>. To execute full test verification:</p>
+    <pre>pwsh -File d:\new_project\tests\smoke_test.ps1</pre>
+    <p>The script validates: Admin authentication &rarr; Hospital creation &rarr; Ambulance creation &rarr; Emergency submission &rarr; Haversine nearest search &rarr; Dispatch pairing &rarr; Call log recording &rarr; Dispatch verification.</p>
+  </div>
+
+  <div class="footer-note">
+    Smart Emergency Response & Ambulance Dispatch System &bull; Full Engineering & Modules Documentation Manual &bull; Generated September 2026
+  </div>
+
+</div>
+
+</body>
+</html>

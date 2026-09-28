@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Smart Dispatch",
+    "slug": "smart-dispatch",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Smart Dispatch to scan connection QR codes."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Smart Dispatch to use your location for emergency dispatch."
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
