@@ -2,8 +2,8 @@ import React, {useState} from 'react';
 import { saveSession } from '../auth';
 
 export default function AdminLogin({ onAuth }) {
-  const [identifier, setIdentifier] = useState('admin@local');
-  const [pass, setPass] = useState('admin');
+  const [identifier, setIdentifier] = useState('');
+  const [pass, setPass] = useState('');
   const [msg, setMsg] = useState('');
 
   async function login(e) {

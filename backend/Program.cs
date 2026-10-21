@@ -154,7 +154,7 @@ using (var scope = app.Services.CreateScope())
 
         if (!db.Hospitals.Any())
         {
-            var demoHospital = new Hospital
+            var defaultHospital = new Hospital
             {
                 HospitalName = "City Emergency Trauma Center",
                 Address = "Station Road, Vadodara",
@@ -163,23 +163,23 @@ using (var scope = app.Services.CreateScope())
                 ContactNumber = "02652223344",
                 Status = "Open"
             };
-            db.Hospitals.Add(demoHospital);
+            db.Hospitals.Add(defaultHospital);
             db.SaveChanges();
 
-            var demoAmbulance = new Ambulance
+            var defaultAmbulance = new Ambulance
             {
-                HospitalId = demoHospital.HospitalId,
-                VehicleNumber = "GJ-01-DEM",
-                DriverName = "Ramesh Kumar (Demo)",
+                HospitalId = defaultHospital.HospitalId,
+                VehicleNumber = "GJ-01-EM-1080",
+                DriverName = "Ramesh Kumar",
                 DriverPhone = "9999999999",
                 Type = "Advanced Life Support",
                 Latitude = 22.3080,
                 Longitude = 73.1810,
                 Status = "Available"
             };
-            db.Ambulances.Add(demoAmbulance);
+            db.Ambulances.Add(defaultAmbulance);
             db.SaveChanges();
-            Console.WriteLine("Seeded default demo hospital and ambulance.");
+            Console.WriteLine("Seeded default hospital and ambulance.");
         }
     }
     catch (Exception ex)
@@ -755,7 +755,7 @@ app.MapPost("/api/auth/hospital-login", async (HospitalLoginRequest req, AppDbCo
     }
 });
 
-// Log a simulated call (demo)
+// Log a call
 app.MapPost("/api/call", async (CallLog call, AppDbContext db) =>
 {
     call.Timestamp = DateTime.UtcNow;
@@ -767,4 +767,3 @@ app.MapPost("/api/call", async (CallLog call, AppDbContext db) =>
 app.Run();
 
 partial class Program{}
-

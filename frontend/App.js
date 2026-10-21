@@ -441,8 +441,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [token, setToken] = useState('');
   const [ambulanceId, setAmbulanceId] = useState('');
-  const [driverName, setDriverName] = useState('');
-  const [dispatches, setDispatches] = useState([]);
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [patientDetails, setPatientDetails] = useState(null);
   const [hospitalDetails, setHospitalDetails] = useState(null);
@@ -480,7 +478,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
       const data = await res.json();
       setToken(data.token);
       setAmbulanceId(String(data.ambulanceId));
-      setDriverName(plateVal);
       setDriverStatusMsg('Connected online.');
       loadMissions(data.ambulanceId, data.token);
     } catch {
@@ -491,12 +488,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
     }
   }
 
-  function handleDemoLogin() {
-    setDriverPhone('9999999999');
-    setVehicleNumber('GJ-01-DEM');
-    handleDriverLogin('9999999999', 'GJ-01-DEM');
-  }
-
   async function loadMissions(ambId = ambulanceId, authToken = token) {
     if (!ambId || !authToken) return;
     try {
@@ -505,7 +496,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
       });
       if (res.ok) {
         const list = await res.json();
-        setDispatches(list);
         const ongoing = list.find((d) => d.status !== 'Completed') || list[0];
         if (ongoing) {
           setActiveDispatch(ongoing);
@@ -648,7 +638,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
     setToken('');
     setAmbulanceId('');
     setActiveDispatch(null);
-    setDispatches([]);
     setIsBroadcastingGps(false);
   }
 
@@ -700,10 +689,6 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
                 ) : (
                   <Text style={styles.primaryButtonText}>Sign In to Ambulance</Text>
                 )}
-              </Pressable>
-
-              <Pressable style={styles.quickDemoButton} onPress={handleDemoLogin}>
-                <Text style={styles.quickDemoText}>⚡ One-Tap Demo Driver (GJ-01-DEM)</Text>
               </Pressable>
 
               {driverStatusMsg ? <Text style={styles.message}>{driverStatusMsg}</Text> : null}
@@ -976,9 +961,6 @@ const styles = StyleSheet.create({
   locationText: { color: '#94a3b8', fontSize: 12, marginTop: 6 },
   message: { color: '#fbbf24', textAlign: 'center', lineHeight: 20, marginTop: 14, fontSize: 13 },
   link: { color: '#38bdf8', fontWeight: '800', marginTop: 6, fontSize: 13 },
-
-  quickDemoButton: { padding: 12, marginTop: 8 },
-  quickDemoText: { color: '#38bdf8', textAlign: 'center', fontWeight: '800', fontSize: 13 },
 
   // Dispatched Ambulance Card in Emergency
   trackingCard: {

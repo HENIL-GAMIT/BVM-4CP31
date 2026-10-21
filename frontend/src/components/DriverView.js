@@ -174,29 +174,6 @@ export default function DriverView() {
     }
   }
 
-  async function handleDemoLogin() {
-    setPhone('9999999999');
-    setVehicleNumber('GJ-01-DEM');
-    try {
-      const res = await fetch('/api/auth/driver-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '9999999999', vehicleNumber: 'GJ-01-DEM' })
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        alert('Login failed: ' + text);
-        return;
-      }
-      const data = await res.json();
-      saveSession({ token: data.token, role: 'Driver', ambulanceId: data.ambulanceId });
-      setToken(data.token);
-      setAmbulanceId(String(data.ambulanceId));
-    } catch (e) {
-      alert('Network error during login');
-    }
-  }
-
   function handleLogout() {
     stopLocationSharing();
     clearSession();
@@ -260,14 +237,6 @@ export default function DriverView() {
             <button className="driver-big-btn primary" onClick={driverLogin} type="button">
               Sign In to Ambulance
             </button>
-
-            <button className="driver-big-btn demo-btn" onClick={handleDemoLogin} type="button">
-              ⚡ One-Tap Demo Driver Login
-            </button>
-
-            <div className="driver-login-hint">
-              <span>Demo phone: <strong>9999999999</strong> • Vehicle: <strong>GJ-01-DEM</strong></span>
-            </div>
           </div>
         </div>
       ) : (

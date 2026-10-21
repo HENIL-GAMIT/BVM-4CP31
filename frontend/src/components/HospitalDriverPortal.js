@@ -11,7 +11,6 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [vehicleNumber, setVehicleNumber] = useState('GJ-01-EM-1080');
   const [driverToken, setDriverToken] = useState(() => (initialSubTab === 'driver' ? getSession('Driver')?.token || '' : ''));
   const [driverCoords, setDriverCoords] = useState({ latitude: 22.3150, longitude: 73.1850 });
-  const [simulatingMotion, setSimulatingMotion] = useState(true);
   const [selectedDispatch, setSelectedDispatch] = useState(null);
   const [greenCorridor, setGreenCorridor] = useState(false);
 
@@ -379,7 +378,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
 
   // Motion simulation & GPS broadcast to backend for driver
   useEffect(() => {
-    if (!driverToken || !simulatingMotion) return;
+    if (!driverToken) return;
     const interval = setInterval(() => {
       const nextLat = +(driverCoords.latitude + 0.0004 * (Math.random() > 0.5 ? 1 : -1)).toFixed(5);
       const nextLng = +(driverCoords.longitude + 0.0003 * (Math.random() > 0.5 ? 1 : -1)).toFixed(5);
@@ -394,7 +393,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       }
     }, 3500);
     return () => clearInterval(interval);
-  }, [driverToken, simulatingMotion, ambulanceId, driverCoords]);
+  }, [driverToken, ambulanceId, driverCoords]);
 
   // Update driver mission status
   async function handleUpdateDriverStatus(newStatus) {

@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
-import { clearSession, getSession } from './auth';
-import AdminDashboard from './components/AdminDashboard';
-import AdminLogin from './components/AdminLogin';
-import DriverView from './components/DriverView';
-import Emergency from './components/Emergency';
-import HistoryView from './components/HistoryView';
-import HospitalView from './components/HospitalView';
-import ReportsView from './components/ReportsView';
+import React, { useEffect, useState } from 'react';
+import CitizenEmergencyView from './components/CitizenEmergencyView';
+import HospitalDriverPortal from './components/HospitalDriverPortal';
+import CommandCenterPortal from './components/CommandCenterPortal';
+import MasterHubView from './components/MasterHubView';
 import './styles.css';
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -20,113 +16,88 @@ if (typeof window !== 'undefined' && !window.__smartDispatchApiConfigured) {
   window.__smartDispatchApiConfigured = true;
 }
 
-const modes = [
-  { id: 'emergency', label: 'Emergency', icon: '🚨' },
-  { id: 'driver', label: 'Driver Portal', icon: '🚑' },
-  { id: 'hospital', label: 'Hospital', icon: '🏥' },
-  { id: 'admin', label: 'Command Center', icon: '🖥️' },
-  { id: 'history', label: 'Mission History', icon: '📜' },
-  { id: 'reports', label: 'Analytics', icon: '📊' },
-];
+function resolveActiveMode() {
+  if (typeof window === 'undefined') return { mode: 'hub', port: '3000' };
 
-function initialMode(session) {
-  if (!session) return 'emergency';
-  return session.role === 'Admin'
-    ? 'admin'
-    : session.role === 'Driver'
-    ? 'driver'
-    : session.role === 'Hospital'
-    ? 'hospital'
-    : 'emergency';
+  // 1. Injected port by multi-server
+  const injectedPort = window.__SMART_DISPATCH_PORT__;
+  const currentPort = injectedPort ? String(injectedPort) : window.location.port;
+
+  // 2. Query param overrides
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryUi = params.get('ui') || params.get('mode') || params.get('view');
+    if (queryUi) return { mode: queryUi, port: currentPort || '3000' };
+    const queryPort = params.get('port');
+    if (queryPort === '3001') return { mode: 'emergency', port: '3001' };
+    if (queryPort === '3002') return { mode: 'hospital-driver', port: '3002' };
+    if (queryPort === '3003') return { mode: 'command', port: '3003' };
+    if (queryPort === '3000') return { mode: 'hub', port: '3000' };
+  } catch (e) {}
+
+  // 3. Port matching
+  if (currentPort === '3001') return { mode: 'emergency', port: '3001' };
+  if (currentPort === '3002') return { mode: 'hospital-driver', port: '3002' };
+  if (currentPort === '3003') return { mode: 'command', port: '3003' };
+  if (currentPort === '3000') return { mode: 'hub', port: '3000' };
+
+  // Default for Expo 8081 or others
+  return { mode: 'hub', port: currentPort || '8081' };
 }
 
 export default function DesktopApp() {
-  const [session, setSession] = useState(() => getSession());
-  const [mode, setMode] = useState(() => initialMode(getSession()));
+  const [resolved, setResolved] = useState(() => resolveActiveMode());
+  const [mode, setMode] = useState(resolved.mode);
+  const [currentPort, setCurrentPort] = useState(resolved.port);
 
-  function logout() {
-    clearSession();
-    setSession(null);
-    setMode('emergency');
+  useEffect(() => {
+    const next = resolveActiveMode();
+    setMode(next.mode);
+    setCurrentPort(next.port);
+
+    const handlePopState = () => {
+      const updated = resolveActiveMode();
+      setMode(updated.mode);
+      setCurrentPort(updated.port);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  function switchView(newMode) {
+    setMode(newMode);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('ui', newMode);
+      window.history.pushState({}, '', url.toString());
+    } catch (e) {}
   }
 
-  function renderView() {
-    if (mode === 'admin') {
-      return session?.role === 'Admin' ? (
-        <AdminDashboard />
-      ) : (
-        <AdminLogin
-          onAuth={() => {
-            setSession(getSession());
-            setMode('admin');
-          }}
-        />
-      );
+  function renderActiveView() {
+    switch (mode) {
+      case 'emergency':
+        return <CitizenEmergencyView />;
+      case 'hospital-driver':
+      case 'driver':
+      case 'hospital':
+        return <HospitalDriverPortal initialSubTab={mode === 'hospital' ? 'hospital' : 'driver'} />;
+      case 'command':
+      case 'admin':
+      case 'history':
+      case 'reports':
+        return <CommandCenterPortal />;
+      case 'hub':
+      default:
+        return <MasterHubView onSwitchView={switchView} />;
     }
-    if (mode === 'driver') return <DriverView />;
-    if (mode === 'hospital') return <HospitalView />;
-    if (mode === 'history') return <HistoryView />;
-    if (mode === 'reports') return <ReportsView />;
-    return <Emergency />;
   }
 
   return (
     <main className="app-shell">
-      {/* Topbar */}
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true">+</div>
-          <div>
-            <div className="brand-title-row">
-              <h1>Smart Dispatch</h1>
-              <span className="brand-live-pill">LIVE SYSTEM</span>
-            </div>
-            <p>Next-Gen Emergency Response & Fleet Control</p>
-          </div>
-        </div>
-
-        <div className="session-actions">
-          <a href="tel:108" className="hotline-pill">
-            <span className="hotline-icon">📞</span>
-            <div className="hotline-text">
-              <small>EMERGENCY HELPLINE</small>
-              <strong>108</strong>
-            </div>
-          </a>
-
-          {session ? (
-            <div className="user-session-box">
-              <span className="session-label">
-                <span className="status-dot online" />
-                {session.role} {session.ambulanceId ? `#${session.ambulanceId}` : ''}
-              </span>
-              <button className="ghost-btn logout-btn" type="button" onClick={logout}>
-                Sign out
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </header>
-
-      {/* Navigation Bar */}
-      <nav className="mode-toggle-bar" aria-label="Dispatch views">
-        <div className="mode-toggle-inner">
-          {modes.map((item) => (
-            <button
-              key={item.id}
-              className={`mode-button ${mode === item.id ? 'active' : ''}`}
-              type="button"
-              onClick={() => setMode(item.id)}
-            >
-              <span className="mode-btn-icon">{item.icon}</span>
-              <span className="mode-btn-label">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main View Container */}
-      <section className="content-panel">{renderView()}</section>
+      <section className="portal-content-panel">
+        {renderActiveView()}
+      </section>
     </main>
   );
 }
