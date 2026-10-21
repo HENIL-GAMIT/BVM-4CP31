@@ -22,13 +22,22 @@ public static class AuthUtils
 
     public static bool VerifyPassword(string password, string stored)
     {
-        var combined = Convert.FromBase64String(stored);
+        byte[] combined;
+        try
+        {
+            combined = Convert.FromBase64String(stored);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        if (combined.Length != 49 || combined[0] != 0) return false;
         byte[] salt = new byte[16];
         Array.Copy(combined, 1, salt, 0, 16);
         var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 100000, HashAlgorithmName.SHA256);
         byte[] hash = pbkdf2.GetBytes(32);
-        for (int i = 0; i < 32; i++) if (combined[17 + i] != hash[i]) return false;
-        return true;
+        return CryptographicOperations.FixedTimeEquals(combined.AsSpan(17, 32), hash);
     }
 
     public static string GenerateJwt(string key, string issuer, string audience, Dictionary<string,string> claims, int expiresMinutes = 60)

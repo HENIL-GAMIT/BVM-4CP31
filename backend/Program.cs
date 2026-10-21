@@ -46,10 +46,15 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 // JWT Auth
 var jwtSection = builder.Configuration.GetSection("Jwt");
-// Provide safe defaults for dev environment when appsettings.json is absent or values are empty
 var key = jwtSection.GetValue<string>("Key");
-// Ensure fallback key is long enough for HS256 (>= 256 bits / 32 bytes)
-if (string.IsNullOrWhiteSpace(key)) key = "DevFallbackJwtKey_ChangeMe_2026_very_long_fallback_key_change_this_to_secret_!";
+if (string.IsNullOrWhiteSpace(key))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("Jwt:Key must be configured outside Development.");
+    key = "DevFallbackJwtKey_ChangeMe_2026_very_long_fallback_key_change_this_to_secret_!";
+}
+if (Encoding.UTF8.GetByteCount(key) < 32)
+    throw new InvalidOperationException("Jwt:Key must contain at least 32 bytes.");
 var issuer = jwtSection.GetValue<string>("Issuer");
 if (string.IsNullOrWhiteSpace(issuer)) issuer = "SmartDispatch";
 var audience = jwtSection.GetValue<string>("Audience");
@@ -190,10 +195,19 @@ app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 // Emergency endpoints
-app.MapGet("/api/emergency", async (AppDbContext db) => await db.EmergencyRequests.ToListAsync());
+app.MapGet("/api/emergency", async (AppDbContext db) => await db.EmergencyRequests.ToListAsync())
+    .RequireAuthorization("AdminOnly");
 
-app.MapGet("/api/emergency/{id}", async (int id, AppDbContext db) =>
-    await db.EmergencyRequests.FindAsync(id) is EmergencyRequest req ? Results.Ok(req) : Results.NotFound());
+app.MapGet("/api/emergency/{id}", async (int id, ClaimsPrincipal user, AppDbContext db) =>
+{
+    var request = await db.EmergencyRequests.FindAsync(id);
+    if (request == null) return Results.NotFound();
+    if (user.FindFirstValue(ClaimTypes.Role) == "Admin") return Results.Ok(request);
+
+    var dispatch = await db.Dispatches.FirstOrDefaultAsync(item => item.RequestId == id);
+    if (dispatch == null || !CanAccessDispatch(dispatch, user)) return Results.Forbid();
+    return Results.Ok(request);
+}).RequireAuthorization();
 
 app.MapPost("/api/emergency", async (EmergencyRequest request, AppDbContext db) =>
 {
@@ -332,6 +346,7 @@ app.MapPut("/api/dispatch/{id}", async (int id, Dispatch updated, ClaimsPrincipa
     var d = await db.Dispatches.FindAsync(id);
     if (d == null) return Results.NotFound();
     var role = user.FindFirstValue(ClaimTypes.Role);
+    if (role is not ("Admin" or "Driver" or "Hospital")) return Results.Forbid();
     if (role == "Driver" && d.AmbulanceId.ToString() != user.FindFirstValue("ambulanceId")) return Results.Forbid();
     if (role == "Hospital" && d.HospitalId.ToString() != user.FindFirstValue("hospitalId")) return Results.Forbid();
     
@@ -380,6 +395,61 @@ app.MapPut("/api/dispatch/{id}", async (int id, Dispatch updated, ClaimsPrincipa
     return Results.Ok(d);
 }).RequireAuthorization();
 
+static bool CanAccessDispatch(Dispatch dispatch, ClaimsPrincipal user)
+{
+    var role = user.FindFirstValue(ClaimTypes.Role);
+    return role == "Admin" ||
+        (role == "Driver" && user.FindFirstValue("ambulanceId") == dispatch.AmbulanceId.ToString()) ||
+        (role == "Hospital" && user.FindFirstValue("hospitalId") == dispatch.HospitalId.ToString());
+}
+
+static bool IsValidBloodPressure(string? value)
+{
+    var parts = value?.Split('/');
+    return parts is { Length: 2 } &&
+        int.TryParse(parts[0].Trim(), out var systolic) &&
+        int.TryParse(parts[1].Trim(), out var diastolic) &&
+        systolic is >= 30 and <= 300 &&
+        diastolic is >= 20 and <= 200;
+}
+
+app.MapPost("/api/dispatch/{dispatchId:int}/vitals", async (int dispatchId, PatientVitalsRequest request, ClaimsPrincipal user, AppDbContext db) =>
+{
+    if (user.FindFirstValue(ClaimTypes.Role) != "Driver")
+        return Results.Forbid();
+
+    var dispatch = await db.Dispatches.FindAsync(dispatchId);
+    if (dispatch == null) return Results.NotFound("Dispatch not found");
+    if (!CanAccessDispatch(dispatch, user)) return Results.Forbid();
+    if (dispatch.Status == "Completed") return Results.Conflict("Cannot update vitals for a completed dispatch");
+    if (request.HeartRate is < 1 or > 300 || request.Spo2 is < 0 or > 100 || !IsValidBloodPressure(request.BloodPressure))
+        return Results.BadRequest("Enter a valid heart rate, blood pressure, and SpO2 value");
+
+    var report = await db.PatientVitals.FindAsync(dispatchId);
+    if (report == null)
+    {
+        report = new PatientVitals { DispatchId = dispatchId };
+        db.PatientVitals.Add(report);
+    }
+
+    report.HeartRate = request.HeartRate;
+    report.BloodPressure = request.BloodPressure!.Trim();
+    report.Spo2 = request.Spo2;
+    report.RecordedAt = DateTime.UtcNow;
+    await db.SaveChangesAsync();
+    return Results.Ok(report);
+}).RequireAuthorization("DriverOnly");
+
+app.MapGet("/api/dispatch/{dispatchId:int}/vitals", async (int dispatchId, ClaimsPrincipal user, AppDbContext db) =>
+{
+    var dispatch = await db.Dispatches.FindAsync(dispatchId);
+    if (dispatch == null) return Results.NotFound("Dispatch not found");
+    if (!CanAccessDispatch(dispatch, user)) return Results.Forbid();
+
+    var report = await db.PatientVitals.FindAsync(dispatchId);
+    return report == null ? Results.NotFound() : Results.Ok(report);
+}).RequireAuthorization();
+
 // Nearest ambulance
 static double Distance(double lat1, double lon1, double lat2, double lon2)
 {
@@ -410,8 +480,12 @@ app.MapGet("/api/hospitals/nearest", async (double lat, double lng, AppDbContext
 });
 
 // Hospitals receive nearby pending requests and accept one to start dispatch.
-app.MapGet("/api/emergency/available-for-hospital/{hospitalId}", async (int hospitalId, AppDbContext db) =>
+app.MapGet("/api/emergency/available-for-hospital/{hospitalId}", async (int hospitalId, ClaimsPrincipal user, AppDbContext db) =>
 {
+    if (user.FindFirstValue(ClaimTypes.Role) != "Hospital" ||
+        user.FindFirstValue("hospitalId") != hospitalId.ToString())
+        return Results.Forbid();
+
     var hospital = await db.Hospitals.FindAsync(hospitalId);
     if (hospital == null) return Results.NotFound("Hospital not found");
 
@@ -431,9 +505,9 @@ app.MapGet("/api/emergency/available-for-hospital/{hospitalId}", async (int hosp
     });
 
     return Results.Ok(nearestRequests.OrderBy(r => Distance(hospital.Latitude, hospital.Longitude, r.Latitude, r.Longitude)));
-});
+}).RequireAuthorization("HospitalOnly");
 
-app.MapPost("/api/emergency/{requestId}/accept", async (int requestId, int hospitalId, ClaimsPrincipal user, AppDbContext db) =>
+app.MapPost("/api/emergency/{requestId}/accept", async (int requestId, int hospitalId, int? ambulanceId, ClaimsPrincipal user, AppDbContext db) =>
 {
     if (user.FindFirstValue(ClaimTypes.Role) != "Hospital" || user.FindFirstValue("hospitalId") != hospitalId.ToString()) return Results.Forbid();
     var request = await db.EmergencyRequests.FindAsync(requestId);
@@ -441,12 +515,12 @@ app.MapPost("/api/emergency/{requestId}/accept", async (int requestId, int hospi
     if (request == null || hospital == null) return Results.NotFound();
     if (request.Status != "Pending") return Results.Conflict("Request is already being handled");
 
-    var ambulance = await db.Ambulances
+    var availableAmbulances = await db.Ambulances
         .Where(a => a.Status == "Available" && a.HospitalId == hospital.HospitalId)
         .ToListAsync();
-    var nearestAmbulance = ambulance
-        .OrderBy(a => Distance(request.Latitude, request.Longitude, a.Latitude, a.Longitude))
-        .FirstOrDefault();
+    var nearestAmbulance = ambulanceId.HasValue
+        ? availableAmbulances.FirstOrDefault(a => a.AmbulanceId == ambulanceId.Value)
+        : availableAmbulances.OrderBy(a => Distance(request.Latitude, request.Longitude, a.Latitude, a.Longitude)).FirstOrDefault();
     if (nearestAmbulance == null) return Results.Conflict("No ambulance is available");
 
     var dispatch = new Dispatch
@@ -501,11 +575,10 @@ app.MapGet("/api/dispatch/request/{requestId}", async (int requestId, string? to
 {
     var request = await db.EmergencyRequests.FindAsync(requestId);
     if (request == null) return Results.NotFound();
-    var role = user.FindFirstValue(ClaimTypes.Role);
     var requestToken = httpRequest.Headers["X-Request-Token"].FirstOrDefault() ?? token;
     var isRequester = !string.IsNullOrWhiteSpace(requestToken) && requestToken == request.RequestToken;
-    if (!isRequester && role is not ("Admin" or "Driver" or "Hospital")) return Results.Forbid();
     var d = await db.Dispatches.FirstOrDefaultAsync(x => x.RequestId == requestId);
+    if (!isRequester && (d == null || !CanAccessDispatch(d, user))) return Results.Forbid();
     return d is not null ? Results.Ok(d) : Results.NotFound();
 });
 
@@ -517,9 +590,9 @@ app.MapGet("/api/tracking/request/{requestId}", async (int requestId, string? to
     var role = user.FindFirstValue(ClaimTypes.Role);
     var requestToken = httpRequest.Headers["X-Request-Token"].FirstOrDefault() ?? token;
     var isRequester = !string.IsNullOrWhiteSpace(requestToken) && requestToken == request.RequestToken;
-    if (!isRequester && role is not ("Admin" or "Driver" or "Hospital")) return Results.Forbid();
-
     var dispatch = await db.Dispatches.FirstOrDefaultAsync(x => x.RequestId == requestId);
+    if (!isRequester && role != "Admin" && (dispatch == null || !CanAccessDispatch(dispatch, user)))
+        return Results.Forbid();
     if (dispatch == null)
     {
         return Results.Ok(new
@@ -610,7 +683,7 @@ app.MapPost("/api/debug/create-admin", async (UserCreateRequest req, AppDbContex
     {
         var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email || u.Phone == req.Phone);
         if (existing != null) return Results.Conflict("User exists");
-        var user = new User { Name = req.Name, Email = req.Email, Phone = req.Phone, Role = req.Role ?? "Admin", PasswordHash = AuthUtils.HashPassword(req.Password) };
+        var user = new User { Name = req.Name, Email = req.Email, Phone = req.Phone, Role = "Admin", PasswordHash = AuthUtils.HashPassword(req.Password) };
         db.Users.Add(user);
         await db.SaveChangesAsync();
         Console.WriteLine($"Created user: {user.UserId} {user.Email} {user.Role}");
@@ -621,7 +694,7 @@ app.MapPost("/api/debug/create-admin", async (UserCreateRequest req, AppDbContex
         Console.WriteLine($"Create-admin failed: {ex}");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
-});
+}).RequireAuthorization("AdminOnly");
 
 // Auth: login
 app.MapPost("/api/auth/login", async (LoginRequest login, AppDbContext db) =>

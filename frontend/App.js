@@ -22,7 +22,7 @@ import DesktopApp from './src/App';
 
 function getDefaultApiUrl() {
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (configuredUrl) return configuredUrl.replace(/\/$/, '');
+  if (configuredUrl) return normalizeApiUrl(configuredUrl);
 
   const host = getExpoHost();
   return host ? `http://${host}:5000` : '';
@@ -39,6 +39,7 @@ function normalizeApiUrl(value) {
 
   try {
     const parsed = new URL(trimmed);
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) return '';
     const expoHost = getExpoHost();
     if (expoHost && (parsed.hostname === '0.0.0.0' || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
       parsed.hostname = expoHost;
@@ -48,7 +49,7 @@ function normalizeApiUrl(value) {
       return '';
     }
   } catch {
-    return trimmed;
+    return '';
   }
   return trimmed;
 }
@@ -59,60 +60,75 @@ export default function App() {
   if (Platform.OS === 'web') return <DesktopApp />;
 
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(false);
   const [apiUrl, setApiUrl] = useState('');
   const [status, setStatus] = useState('Scan the backend QR code to connect.');
-  const [mobileMode, setMobileMode] = useState('emergency'); // 'emergency' | 'driver'
+  const [mobileMode, setMobileMode] = useState(null);
+
+  if (!mobileMode) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.screen}>
+          <View style={styles.scannerHeader}>
+            <Text style={styles.kicker}>SMART DISPATCH MOBILE</Text>
+            <Text style={styles.title}>Choose your mobile UI</Text>
+            <Text style={styles.subtitle}>Open the dedicated connection scanner for the patient or ambulance driver app.</Text>
+          </View>
+          <Pressable
+            style={[styles.primaryButton, styles.modeLaunchButton]}
+            onPress={() => {
+              setMobileMode('emergency');
+              setScanning(true);
+              setApiUrl('');
+            }}
+          >
+            <Text style={styles.primaryButtonText}>🚨 Patient Emergency Scanner</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.secondaryButton, styles.modeLaunchButton]}
+            onPress={() => {
+              setMobileMode('driver');
+              setScanning(true);
+              setApiUrl('');
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>🚑 Driver Portal Scanner</Text>
+          </Pressable>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   if (scanning) {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.screen}>
           <View style={styles.scannerHeader}>
-            <Text style={styles.kicker}>SMART DISPATCH MOBILE</Text>
-            <Text style={styles.title}>Connect to dispatch</Text>
-            <Text style={styles.subtitle}>Scan the QR code or enter your computer backend URL.</Text>
+            <Text style={styles.kicker}>{mobileMode === 'emergency' ? 'PATIENT EMERGENCY' : 'AMBULANCE DRIVER'}</Text>
+            <Text style={styles.title}>{mobileMode === 'emergency' ? 'Emergency connection scanner' : 'Driver connection scanner'}</Text>
+            <Text style={styles.subtitle}>Scan a backend QR code or enter the backend URL for this mobile UI.</Text>
           </View>
-          <View style={styles.scannerFrame}>
-            {permission?.granted ? (
-              <CameraView
-                style={StyleSheet.absoluteFillObject}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={({ data }) => {
-                  if (!data || apiUrl) return;
-                  setApiUrl(normalizeApiUrl(data));
-                  setScanning(false);
-                  setStatus('Checking backend connection...');
-                }}
-              />
-            ) : (
-              <View style={styles.permissionBox}>
-                <Text style={styles.permissionText}>Camera access is needed to scan the connection QR.</Text>
-                <Pressable style={styles.primaryButton} onPress={requestPermission}>
-                  <Text style={styles.primaryButtonText}>Allow camera</Text>
-                </Pressable>
-              </View>
-            )}
-            <View style={styles.scanCorners} />
-          </View>
-          <Text style={styles.helper}>On the same Wi-Fi, scan or enter URL such as http://192.168.1.10:5000</Text>
-          <TextInput
-            style={styles.urlInput}
-            value={apiUrl}
-            onChangeText={setApiUrl}
-            placeholder="Or enter backend URL (http://10.x.x.x:5000)"
-            placeholderTextColor="#8a93a3"
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => {
-              if (apiUrl.trim()) setScanning(false);
+          <ConnectionScanner
+            key={mobileMode}
+            permission={permission}
+            requestPermission={requestPermission}
+            apiUrl={apiUrl}
+            onApiUrlChange={setApiUrl}
+            onConnect={(url) => {
+              setApiUrl(url);
+              setScanning(false);
+              setStatus('Checking backend connection...');
             }}
-          >
-            <Text style={styles.secondaryButtonText}>Continue with URL</Text>
+            onInvalidUrl={() => setStatus('Enter or scan a valid backend URL, including http:// or https://.')}
+          />
+          <Text style={styles.helper}>On the same Wi-Fi, scan or enter URL such as http://192.168.1.10:5000</Text>
+          <Text style={styles.message}>{status}</Text>
+          <Pressable style={styles.linkButton} onPress={() => {
+            setMobileMode(null);
+            setApiUrl('');
+            setScanning(false);
+          }}>
+            <Text style={styles.link}>Choose another mobile UI</Text>
           </Pressable>
         </SafeAreaView>
       </SafeAreaProvider>
@@ -164,6 +180,54 @@ export default function App() {
         )}
       </SafeAreaView>
     </SafeAreaProvider>
+  );
+}
+
+function ConnectionScanner({ permission, requestPermission, apiUrl, onApiUrlChange, onConnect, onInvalidUrl }) {
+  function connect(value) {
+    const normalizedUrl = normalizeApiUrl(value);
+    if (!normalizedUrl) {
+      onInvalidUrl();
+      return;
+    }
+    onConnect(normalizedUrl);
+  }
+
+  return (
+    <>
+      <View style={styles.scannerFrame}>
+        {permission?.granted ? (
+          <CameraView
+            style={StyleSheet.absoluteFillObject}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={({ data }) => {
+              if (data) connect(data);
+            }}
+          />
+        ) : (
+          <View style={styles.permissionBox}>
+            <Text style={styles.permissionText}>Camera access is needed to scan the connection QR.</Text>
+            <Pressable style={styles.primaryButton} onPress={requestPermission}>
+              <Text style={styles.primaryButtonText}>Allow camera</Text>
+            </Pressable>
+          </View>
+        )}
+        <View style={styles.scanCorners} />
+      </View>
+      <TextInput
+        style={styles.urlInput}
+        value={apiUrl}
+        onChangeText={onApiUrlChange}
+        placeholder="Or enter backend URL (http://10.x.x.x:5000)"
+        placeholderTextColor="#8a93a3"
+        autoCapitalize="none"
+        keyboardType="url"
+      />
+      <Pressable style={styles.secondaryButton} onPress={() => connect(apiUrl)}>
+        <Text style={styles.secondaryButtonText}>Continue with URL</Text>
+      </Pressable>
+    </>
   );
 }
 
@@ -382,6 +446,9 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [patientDetails, setPatientDetails] = useState(null);
   const [hospitalDetails, setHospitalDetails] = useState(null);
+  const [vitals, setVitals] = useState({ heartRate: '108', bloodPressure: '128/84', spo2: '95' });
+  const [vitalsMessage, setVitalsMessage] = useState('');
+  const [sendingVitals, setSendingVitals] = useState(false);
   const [isBroadcastingGps, setIsBroadcastingGps] = useState(false);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -529,6 +596,46 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
       }
     } catch {
       Alert.alert('Network Error', 'Check connection.');
+    }
+  }
+
+  async function sendPatientVitals() {
+    if (!activeDispatch?.dispatchId || !token) {
+      setVitalsMessage('An active mission and valid driver session are required.');
+      return;
+    }
+
+    const heartRate = Number(vitals.heartRate);
+    const spo2 = Number(vitals.spo2.replace('%', '').trim());
+    if (!Number.isInteger(heartRate) || heartRate < 1 || heartRate > 300 ||
+        !Number.isInteger(spo2) || spo2 < 0 || spo2 > 100 ||
+        !/^\s*\d{1,3}\s*\/\s*\d{1,3}\s*$/.test(vitals.bloodPressure)) {
+      setVitalsMessage('Enter valid heart rate, blood pressure (for example 128/84), and SpO2.');
+      return;
+    }
+
+    setSendingVitals(true);
+    setVitalsMessage('');
+    try {
+      const res = await fetch(`${apiUrl}/api/dispatch/${activeDispatch.dispatchId}/vitals`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heartRate,
+          bloodPressure: vitals.bloodPressure.trim(),
+          spo2
+        })
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        setVitalsMessage(detail || `Vitals were not sent (HTTP ${res.status}).`);
+        return;
+      }
+      setVitalsMessage('Patient vitals sent to the assigned hospital ER.');
+    } catch {
+      setVitalsMessage(`Could not reach ${apiUrl}. Patient vitals were not sent.`);
+    } finally {
+      setSendingVitals(false);
     }
   }
 
@@ -723,6 +830,38 @@ function DriverMobileScreen({ apiUrl, onRescan }) {
                     );
                   })}
                 </View>
+
+                <View style={styles.mobileVitalsCard}>
+                  <Text style={styles.statusSectionLabel}>Send Patient Vitals to Hospital ER</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={vitals.heartRate}
+                    onChangeText={(value) => setVitals((current) => ({ ...current, heartRate: value }))}
+                    placeholder="Heart rate (BPM)"
+                    placeholderTextColor="#8a93a3"
+                    keyboardType="number-pad"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={vitals.bloodPressure}
+                    onChangeText={(value) => setVitals((current) => ({ ...current, bloodPressure: value }))}
+                    placeholder="Blood pressure (128/84)"
+                    placeholderTextColor="#8a93a3"
+                    keyboardType="numbers-and-punctuation"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={vitals.spo2}
+                    onChangeText={(value) => setVitals((current) => ({ ...current, spo2: value }))}
+                    placeholder="SpO2 (%)"
+                    placeholderTextColor="#8a93a3"
+                    keyboardType="number-pad"
+                  />
+                  <Pressable style={styles.primaryButton} onPress={sendPatientVitals} disabled={sendingVitals}>
+                    {sendingVitals ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>📡 Send Vitals to ER</Text>}
+                  </Pressable>
+                  {vitalsMessage ? <Text style={styles.message}>{vitalsMessage}</Text> : null}
+                </View>
               </View>
             ) : (
               <View style={styles.emptyMissionCard}>
@@ -758,6 +897,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: '#07111f' },
   content: { padding: 20, paddingBottom: 48 },
+  modeLaunchButton: { marginHorizontal: 20, marginTop: 14 },
+  linkButton: { alignItems: 'center', padding: 14, marginTop: 4 },
 
   // Top Mobile Role Switcher
   modeTabBar: {
@@ -896,6 +1037,12 @@ const styles = StyleSheet.create({
     borderColor: '#2563eb',
     borderRadius: 18,
     padding: 18
+  },
+  mobileVitalsCard: {
+    backgroundColor: '#172a42',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 18
   },
   missionCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   missionKicker: { color: '#38bdf8', fontSize: 11, fontWeight: '900', letterSpacing: 1 },

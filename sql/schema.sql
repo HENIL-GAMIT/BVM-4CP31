@@ -60,3 +60,11 @@ CREATE TABLE Dispatches (
     CompletionTime DATETIME2 NULL,
     Status NVARCHAR(50)
 );
+
+CREATE TABLE PatientVitals (
+    DispatchId INT PRIMARY KEY REFERENCES Dispatches(DispatchId) ON DELETE CASCADE,
+    HeartRate INT NOT NULL,
+    BloodPressure NVARCHAR(MAX) NOT NULL,
+    Spo2 INT NOT NULL,
+    RecordedAt DATETIME2 NOT NULL
+);

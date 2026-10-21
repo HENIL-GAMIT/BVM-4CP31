@@ -194,6 +194,29 @@ namespace SmartDispatch.Migrations
                     b.ToTable("Hospitals");
                 });
 
+            modelBuilder.Entity("backend.Models.PatientVitals", b =>
+                {
+                    b.Property<int>("DispatchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BloodPressure")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("HeartRate")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Spo2")
+                        .HasColumnType("int");
+
+                    b.HasKey("DispatchId");
+
+                    b.ToTable("PatientVitals");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.Property<int>("UserId")
@@ -231,6 +254,15 @@ namespace SmartDispatch.Migrations
                         .WithMany()
                         .HasForeignKey("HospitalId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("backend.Models.PatientVitals", b =>
+                {
+                    b.HasOne("backend.Models.Dispatch", null)
+                        .WithOne()
+                        .HasForeignKey("backend.Models.PatientVitals", "DispatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

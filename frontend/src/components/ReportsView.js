@@ -9,13 +9,12 @@ export default function ReportsView() {
   const [hospitals, setHospitals] = useState([]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers = authHeaders();
     Promise.all([
       fetch('/api/admin/summary', { headers }),
-      fetch('/api/emergency'),
-      fetch('/api/dispatch'),
-      fetch('/api/ambulances', { headers: authHeaders() }),
+      fetch('/api/emergency', { headers }),
+      fetch('/api/dispatch', { headers }),
+      fetch('/api/ambulances', { headers }),
       fetch('/api/hospitals')
     ]).then(async ([summaryResponse, requestsResponse, dispatchesResponse, ambulancesResponse, hospitalsResponse]) => {
       setSummary(summaryResponse.ok ? await summaryResponse.json() : null);

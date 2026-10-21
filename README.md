@@ -24,6 +24,9 @@ dotnet ef database update
 dotnet run
 ```
 
+For local runs, set `ASPNETCORE_ENVIRONMENT=Development` first (`$env:ASPNETCORE_ENVIRONMENT='Development'` in PowerShell or `export ASPNETCORE_ENVIRONMENT=Development` in Bash).
+Production runs must configure a private `Jwt:Key` of at least 32 bytes; the development signing-key fallback is disabled outside Development.
+
 Frontend (requires Node 18+):
 
 ```bash

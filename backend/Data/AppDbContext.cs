@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Dispatch> Dispatches => Set<Dispatch>();
     public DbSet<CallLog> CallLogs => Set<CallLog>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<PatientVitals> PatientVitals => Set<PatientVitals>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Dispatch>().HasKey(d => d.DispatchId);
         modelBuilder.Entity<CallLog>().HasKey(c => c.CallLogId);
         modelBuilder.Entity<User>().HasKey(u => u.UserId);
+        modelBuilder.Entity<PatientVitals>().HasKey(v => v.DispatchId);
+        modelBuilder.Entity<PatientVitals>()
+            .HasOne<Dispatch>()
+            .WithOne()
+            .HasForeignKey<PatientVitals>(v => v.DispatchId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Hospital>()
             .HasMany<Ambulance>()
             .WithOne()

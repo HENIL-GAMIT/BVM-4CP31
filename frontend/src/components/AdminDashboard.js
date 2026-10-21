@@ -25,7 +25,7 @@ export default function AdminDashboard() {
   });
 
   async function load() {
-    const r = await fetch('/api/emergency');
+    const r = await fetch('/api/emergency', { headers: authHeaders() });
     setRequests(await r.json());
 
     const a = await fetch('/api/ambulances', { headers: authHeaders() });

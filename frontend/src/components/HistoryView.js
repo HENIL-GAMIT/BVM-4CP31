@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { authHeaders } from '../auth';
 
 function formatDate(value) {
   if (!value) return 'Not recorded';
@@ -15,11 +16,10 @@ export default function HistoryView() {
 
   async function load() {
     setLoading(true);
-    const token = localStorage.getItem('token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers = authHeaders();
     const [requestsResponse, dispatchesResponse, callsResponse] = await Promise.all([
-      fetch('/api/emergency'),
-      fetch('/api/dispatch'),
+      fetch('/api/emergency', { headers }),
+      fetch('/api/dispatch', { headers }),
       fetch('/api/calls', { headers })
     ]);
     setRequests(requestsResponse.ok ? await requestsResponse.json() : []);
