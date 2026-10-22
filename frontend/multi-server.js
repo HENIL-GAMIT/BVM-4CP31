@@ -12,10 +12,9 @@ const url = require('url');
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const parsedBackend = new url.URL(BACKEND_URL);
 
-// Locate frontend dist directory
+// Locate the current Expo web export.
 const DIST_DIR = path.resolve(__dirname, 'dist');
-const BUILD_DIR = path.resolve(__dirname, 'build');
-const STATIC_DIR = fs.existsSync(DIST_DIR) ? DIST_DIR : BUILD_DIR;
+const STATIC_DIR = DIST_DIR;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',

@@ -46,6 +46,7 @@ Run the unified frontend on one UI port:
 
 # Or from frontend directory
 cd frontend
+npm run build
 npm start
 ```
 
