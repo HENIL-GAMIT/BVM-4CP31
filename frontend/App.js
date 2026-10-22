@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState } from 'react';
+import NativeRoleDashboard from './NativeRoleDashboard';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +18,7 @@ import {
   View
 } from 'react-native';
 
-// The web build uses the operations console; native builds keep the mobile emergency & driver flow.
+// The web build uses the operations console; Android and iOS use native screens.
 import DesktopApp from './src/App';
 
 function getDefaultApiUrl() {
@@ -61,42 +62,77 @@ export default function App() {
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
-  const [apiUrl, setApiUrl] = useState('');
-  const [status, setStatus] = useState('Scan the backend QR code to connect.');
-  const [mobileMode, setMobileMode] = useState(null);
+  const [apiUrl, setApiUrl] = useState(defaultApiUrl);
+  const [showLogin, setShowLogin] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginMessage, setLoginMessage] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [session, setSession] = useState(null);
+  const effectiveApiUrl = normalizeApiUrl(apiUrl) || defaultApiUrl;
 
-  if (!mobileMode) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.screen}>
-          <View style={styles.scannerHeader}>
-            <Text style={styles.kicker}>SMART DISPATCH MOBILE</Text>
-            <Text style={styles.title}>Choose your mobile UI</Text>
-            <Text style={styles.subtitle}>Open the dedicated connection scanner for the patient or ambulance driver app.</Text>
-          </View>
-          <Pressable
-            style={[styles.primaryButton, styles.modeLaunchButton]}
-            onPress={() => {
-              setMobileMode('emergency');
-              setScanning(true);
-              setApiUrl('');
-            }}
-          >
-            <Text style={styles.primaryButtonText}>🚨 Patient Emergency Scanner</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.secondaryButton, styles.modeLaunchButton]}
-            onPress={() => {
-              setMobileMode('driver');
-              setScanning(true);
-              setApiUrl('');
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>🚑 Driver Portal Scanner</Text>
-          </Pressable>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
+  async function signIn() {
+    if (!effectiveApiUrl) {
+      setLoginMessage('Configure the backend address before signing in.');
+      return;
+    }
+    if (!identifier.trim() || !password) {
+      setLoginMessage('Enter your email or phone number and password.');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginMessage('');
+    const loginOptions = [
+      {
+        role: 'Admin',
+        path: '/api/auth/login',
+        body: { email: identifier.trim(), password }
+      },
+      {
+        role: 'Hospital',
+        path: '/api/auth/hospital-login',
+        body: { phone: identifier.trim(), password }
+      },
+      {
+        role: 'Driver',
+        path: '/api/auth/driver-login',
+        body: { phone: identifier.trim(), password }
+      }
+    ];
+
+    try {
+      for (const option of loginOptions) {
+        const response = await fetch(`${effectiveApiUrl}${option.path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(option.body)
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (!result.token || (option.role === 'Admin' && result.role !== 'Admin') ||
+              (option.role === 'Hospital' && result.hospitalId == null) ||
+              (option.role === 'Driver' && result.ambulanceId == null)) {
+            throw new Error('The server returned an incomplete sign-in session.');
+          }
+          setSession({ ...result, role: option.role });
+          setShowLogin(false);
+          setIdentifier('');
+          setPassword('');
+          return;
+        }
+        if (response.status === 401 || response.status === 403) continue;
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || `Sign in failed (HTTP ${response.status}).`);
+        }
+      }
+      setLoginMessage('Invalid email or phone number, or password. Check your credentials and try again.');
+    } catch (error) {
+      setLoginMessage(error.message || `Could not reach ${effectiveApiUrl}. Check the backend connection.`);
+    } finally {
+      setLoginLoading(false);
+    }
   }
 
   if (scanning) {
@@ -104,12 +140,11 @@ export default function App() {
       <SafeAreaProvider>
         <SafeAreaView style={styles.screen}>
           <View style={styles.scannerHeader}>
-            <Text style={styles.kicker}>{mobileMode === 'emergency' ? 'PATIENT EMERGENCY' : 'AMBULANCE DRIVER'}</Text>
-            <Text style={styles.title}>{mobileMode === 'emergency' ? 'Emergency connection scanner' : 'Driver connection scanner'}</Text>
+            <Text style={styles.kicker}>BACKEND CONNECTION</Text>
+            <Text style={styles.title}>Connect to dispatch</Text>
             <Text style={styles.subtitle}>Scan a backend QR code or enter the backend URL for this mobile UI.</Text>
           </View>
           <ConnectionScanner
-            key={mobileMode}
             permission={permission}
             requestPermission={requestPermission}
             apiUrl={apiUrl}
@@ -117,65 +152,79 @@ export default function App() {
             onConnect={(url) => {
               setApiUrl(url);
               setScanning(false);
-              setStatus('Checking backend connection...');
             }}
-            onInvalidUrl={() => setStatus('Enter or scan a valid backend URL, including http:// or https://.')}
+            onInvalidUrl={() => setLoginMessage('Enter or scan a valid backend URL, including http:// or https://.')}
           />
           <Text style={styles.helper}>On the same Wi-Fi, scan or enter URL such as http://192.168.1.10:5000</Text>
-          <Text style={styles.message}>{status}</Text>
           <Pressable style={styles.linkButton} onPress={() => {
-            setMobileMode(null);
-            setApiUrl('');
             setScanning(false);
           }}>
-            <Text style={styles.link}>Choose another mobile UI</Text>
+            <Text style={styles.link}>Back to emergency home</Text>
           </Pressable>
         </SafeAreaView>
       </SafeAreaProvider>
     );
   }
 
-  const effectiveApiUrl = normalizeApiUrl(apiUrl) || defaultApiUrl;
-
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
-        {/* Mobile Top Navigation: Switch between Patient Emergency and Driver Portal */}
-        <View style={styles.modeTabBar}>
-          <Pressable
-            style={[styles.modeTab, mobileMode === 'emergency' && styles.modeTabActive]}
-            onPress={() => setMobileMode('emergency')}
-          >
-            <Text style={[styles.modeTabText, mobileMode === 'emergency' && styles.modeTabTextActive]}>
-              🚨 Patient Emergency
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.modeTab, mobileMode === 'driver' && styles.modeTabActive]}
-            onPress={() => setMobileMode('driver')}
-          >
-            <Text style={[styles.modeTabText, mobileMode === 'driver' && styles.modeTabTextActive]}>
-              🚑 Driver Portal
-            </Text>
-          </Pressable>
-        </View>
-
-        {mobileMode === 'emergency' ? (
+        {session ? (
+          <NativeRoleDashboard
+            key={`${session.role}-${session.hospitalId || session.ambulanceId || 'admin'}`}
+            apiUrl={effectiveApiUrl}
+            session={session}
+            onSignOut={() => setSession(null)}
+          />
+        ) : showLogin ? (
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              <View style={styles.headerRow}>
+                <View>
+                  <Text style={styles.kicker}>SECURE ACCESS</Text>
+                  <Text style={styles.title}>Sign in</Text>
+                </View>
+                <Pressable onPress={() => setScanning(true)}>
+                  <Text style={styles.link}>Config</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.subtitle}>Use your registered email or phone number. Your dashboard opens automatically after sign in.</Text>
+              <View style={styles.form}>
+                <TextInput
+                  style={styles.input}
+                  value={identifier}
+                  onChangeText={setIdentifier}
+                  placeholder="Email or phone number"
+                  placeholderTextColor="#8a93a3"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="username"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  placeholderTextColor="#8a93a3"
+                  secureTextEntry
+                  autoComplete="password"
+                  onSubmitEditing={signIn}
+                />
+                <Pressable style={styles.primaryButton} onPress={signIn} disabled={loginLoading}>
+                  {loginLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Sign in securely</Text>}
+                </Pressable>
+                {loginMessage ? <Text style={styles.message}>{loginMessage}</Text> : null}
+                <Pressable style={styles.linkButton} onPress={() => { setShowLogin(false); setLoginMessage(''); }}>
+                  <Text style={styles.link}>Back to emergency home</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        ) : (
           <EmergencyScreen
             apiUrl={effectiveApiUrl}
-            status={status}
-            onRescan={() => {
-              setApiUrl('');
-              setScanning(true);
-            }}
-          />
-        ) : (
-          <DriverMobileScreen
-            apiUrl={effectiveApiUrl}
-            onRescan={() => {
-              setApiUrl('');
-              setScanning(true);
-            }}
+            onRescan={() => setScanning(true)}
+            onSignIn={() => setShowLogin(true)}
           />
         )}
       </SafeAreaView>
@@ -234,13 +283,13 @@ function ConnectionScanner({ permission, requestPermission, apiUrl, onApiUrlChan
 /* =================================================================
    EMERGENCY PATIENT SCREEN (Native Mobile)
    ================================================================= */
-function EmergencyScreen({ apiUrl, status, onRescan }) {
+function EmergencyScreen({ apiUrl, onRescan, onSignIn }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [type, setType] = useState('Accident');
   const [priority, setPriority] = useState('Critical');
   const [location, setLocation] = useState(null);
-  const [message, setMessage] = useState(status);
+  const [message, setMessage] = useState(apiUrl ? 'Connecting to dispatch services...' : 'Configure the backend address to submit an emergency.');
   const [activeRequest, setActiveRequest] = useState(null);
   const [tracking, setTracking] = useState(null);
 
@@ -336,9 +385,10 @@ function EmergencyScreen({ apiUrl, status, onRescan }) {
             <Text style={styles.kicker}>EMERGENCY DISPATCH</Text>
             <Text style={styles.title}>Need urgent help?</Text>
           </View>
-          <Pressable onPress={onRescan}>
-            <Text style={styles.link}>Config</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable onPress={onRescan}><Text style={styles.link}>Config</Text></Pressable>
+            <Pressable style={styles.loginButton} onPress={onSignIn}><Text style={styles.loginButtonText}>Sign in</Text></Pressable>
+          </View>
         </View>
         <Text style={styles.subtitle}>Instant emergency ambulance dispatch with live tracking.</Text>
 
@@ -961,6 +1011,9 @@ const styles = StyleSheet.create({
   locationText: { color: '#94a3b8', fontSize: 12, marginTop: 6 },
   message: { color: '#fbbf24', textAlign: 'center', lineHeight: 20, marginTop: 14, fontSize: 13 },
   link: { color: '#38bdf8', fontWeight: '800', marginTop: 6, fontSize: 13 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  loginButton: { backgroundColor: '#dc2626', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
+  loginButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   // Dispatched Ambulance Card in Emergency
   trackingCard: {

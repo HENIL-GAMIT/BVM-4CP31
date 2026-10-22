@@ -53,8 +53,9 @@ The unified frontend is available at [http://localhost:3000](http://localhost:30
 
 ### Native Expo apps
 
-Run `npm run android` or `npm run ios` from `frontend/` to open the native Expo app. Choose **Patient Emergency Scanner** or **Driver Portal Scanner** to get the role-specific QR scanner, then scan a QR code containing the backend URL (for example, `http://192.168.1.10:5000`) or enter it manually.
-The native driver mission screen can send patient vitals to the assigned hospital ER; the hospital console refreshes the latest report automatically.
+Run `npm run android` or `npm run ios` from `frontend/` to open the native Expo app. It starts on the emergency request screen; use **Sign in** in the top-right corner to open the shared login for Admin, Hospital, and Driver accounts. Sign in with the registered email or phone and password to open the matching native dashboard. The dashboards support emergency dispatch/acceptance, ambulance fleet management, driver mission status, live GPS sharing, and patient vitals.
+
+The app uses `EXPO_PUBLIC_API_URL` when configured; otherwise it uses the Expo host address on port 5000. Use **Config** to scan a backend QR code or enter the backend URL manually (for example, `http://192.168.1.10:5000`). The Android device and backend must be able to reach each other over the network.
 
 ### Login provisioning
 
