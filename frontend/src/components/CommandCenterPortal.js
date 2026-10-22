@@ -11,17 +11,8 @@ export default function CommandCenterPortal() {
 
   // Operational data (Starts empty - only real requests shown)
   const [requests, setRequests] = useState([]);
-
-  const [ambulances, setAmbulances] = useState([
-    { ambulanceId: 1, hospitalId: 1, vehicleNumber: 'GJ-01-EM-1080', driverName: 'Ramesh Kumar', status: 'Available', latitude: 22.3080, longitude: 73.1810 },
-    { ambulanceId: 2, hospitalId: 1, vehicleNumber: 'GJ-01-EM-1081', driverName: 'Vikram Singh', status: 'Available', latitude: 22.3150, longitude: 73.1890 },
-    { ambulanceId: 3, hospitalId: 2, vehicleNumber: 'GJ-01-EM-1082', driverName: 'Amit Desai', status: 'Available', latitude: 22.3010, longitude: 73.1740 }
-  ]);
-
-  const [hospitals, setHospitals] = useState([
-    { hospitalId: 1, hospitalName: 'City Emergency Trauma Center', address: 'Station Road, Vadodara', contactNumber: '02652223344', latitude: 22.31, longitude: 73.19, status: 'Open' },
-    { hospitalId: 2, hospitalName: 'Sterling Multi-Specialty Hospital', address: 'Race Course Rd, Vadodara', contactNumber: '02652335566', latitude: 22.32, longitude: 73.17, status: 'Open' }
-  ]);
+  const [ambulances, setAmbulances] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
 
   // Form: Admin Add New Hospital
   const [newHospName, setNewHospName] = useState('');
@@ -31,9 +22,6 @@ export default function CommandCenterPortal() {
   const [newHospLng, setNewHospLng] = useState('73.1820');
   const [newHospStatus, setNewHospStatus] = useState('Open');
   const [hospSuccessMsg, setHospSuccessMsg] = useState('');
-
-  // Green Corridor state
-  const [greenCorridorActive, setGreenCorridorActive] = useState(false);
 
   // Search filter for history
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +59,14 @@ export default function CommandCenterPortal() {
 
   // Load backend data if connected
   function loadData() {
+    // Hospitals are public
+    fetch('/api/hospitals')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setHospitals(data);
+      })
+      .catch(() => {});
+
     if (!adminToken) return;
     const headers = authHeaders(adminToken);
 
@@ -84,14 +80,7 @@ export default function CommandCenterPortal() {
     fetch('/api/ambulances', { headers })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (data && data.length > 0) setAmbulances(data);
-      })
-      .catch(() => {});
-
-    fetch('/api/hospitals')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (data && data.length > 0) setHospitals(data);
+        if (Array.isArray(data)) setAmbulances(data);
       })
       .catch(() => {});
   }
@@ -382,7 +371,7 @@ export default function CommandCenterPortal() {
           {/* ========================================================================= */}
           {activeTab === 'dispatch' && (
             <div className="command-grid-two">
-              {/* Left Column: Map and Green Corridor */}
+              {/* Left Column: Tactical Map */}
               <div className="command-col-main">
                 <div className="simple-card">
                   <div className="card-top-title">
@@ -390,23 +379,6 @@ export default function CommandCenterPortal() {
                     <span className="live-status-tag">● LIVE GPS RADAR</span>
                   </div>
                   <MapView height={360} zoom={13} markers={mapMarkers} />
-                </div>
-
-                {/* Green Corridor Switch */}
-                <div className="simple-card corridor-box-clean">
-                  <div className="corridor-text-clean">
-                    <div>
-                      <strong>🚦 Municipal Green Corridor Traffic Preemption</strong>
-                      <p>Turn city traffic signals green along ambulance routes to speed up response.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={`corridor-btn-clean ${greenCorridorActive ? 'active' : ''}`}
-                      onClick={() => setGreenCorridorActive(!greenCorridorActive)}
-                    >
-                      {greenCorridorActive ? '🟢 Green Corridor Active (Signals Cleared)' : '⚡ Clear Traffic Signals'}
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -618,7 +590,7 @@ export default function CommandCenterPortal() {
                 <div className="metric-box">
                   <span className="metric-title">AVERAGE RESPONSE TIME</span>
                   <strong className="metric-num">7.4 Min</strong>
-                  <small className="metric-good">↓ 38% faster with Green Corridor</small>
+                  <small className="metric-good">Optimal response time</small>
                 </div>
                 <div className="metric-box">
                   <span className="metric-title">TOTAL DISTRESS CALLS</span>

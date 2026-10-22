@@ -78,7 +78,7 @@ export default function PortNavigationBanner({ activeMode, currentPort, onSwitch
               <strong>SMART DISPATCH 108</strong>
               <span className="live-badge">REAL-WORLD OPS</span>
             </div>
-            <p className="port-nav-brand-sub">National Emergency Ambulance & Green Corridor Network</p>
+            <p className="port-nav-brand-sub">National Emergency Ambulance Response Network</p>
           </div>
         </div>
 

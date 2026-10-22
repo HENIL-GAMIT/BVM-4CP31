@@ -24,7 +24,7 @@ export default function MasterHubView({ onSwitchView }) {
       id: 'command',
       port: '3003',
       title: 'Command Center & Analytics',
-      desc: 'City-wide tactical fleet dispatch, traffic light Green Corridor preemption, and operational analytics.',
+      desc: 'City-wide tactical fleet dispatch, emergency hospital network, and operational analytics.',
       icon: '🖥️',
       btnColor: '#3b82f6',
       url: 'http://localhost:3003'

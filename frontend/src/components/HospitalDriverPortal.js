@@ -6,13 +6,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [subTab, setSubTab] = useState(initialSubTab); // 'driver' | 'hospital'
 
   // Driver state
-  const [ambulanceId, setAmbulanceId] = useState(() => localStorage.getItem('driverAmbulanceId') || '1');
-  const [driverPhone, setDriverPhone] = useState('9999999999');
-  const [vehicleNumber, setVehicleNumber] = useState('GJ-01-EM-1080');
+  const [ambulanceId, setAmbulanceId] = useState(() => getSession('Driver')?.ambulanceId || '');
+  const [driverPhone, setDriverPhone] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
   const [driverToken, setDriverToken] = useState(() => (initialSubTab === 'driver' ? getSession('Driver')?.token || '' : ''));
   const [driverCoords, setDriverCoords] = useState({ latitude: 22.3150, longitude: 73.1850 });
   const [selectedDispatch, setSelectedDispatch] = useState(null);
-  const [greenCorridor, setGreenCorridor] = useState(false);
 
   // Vitals
   const [vitals, setVitals] = useState({ heartRate: '108', bloodPressure: '128/84', spo2: '95%' });
@@ -20,10 +19,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [sendingVitals, setSendingVitals] = useState(false);
 
   // Hospital state
-  const [hospitalId, setHospitalId] = useState(() => getSession('Hospital')?.hospitalId || '1');
-  const [hospPhone, setHospPhone] = useState('02652223344');
-  const [hospitalName, setHospitalName] = useState('City Emergency Trauma Center');
+  const [hospitalId, setHospitalId] = useState(() => getSession('Hospital')?.hospitalId || '');
+  const [hospPhone, setHospPhone] = useState('');
+  const [hospitalName, setHospitalName] = useState('');
   const [hospitalToken, setHospitalToken] = useState(() => (initialSubTab === 'hospital' ? getSession('Hospital')?.token || '' : ''));
+  const [registeredHospitals, setRegisteredHospitals] = useState([]);
+  const [allAmbulances, setAllAmbulances] = useState([]);
   const [icuAvailable, setIcuAvailable] = useState(2);
   const [traumaBayStatus, setTraumaBayStatus] = useState('Ready');
   const [traumaAlerted, setTraumaAlerted] = useState(false);
@@ -32,10 +33,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [activeIncomingEmergency, setActiveIncomingEmergency] = useState(null);
 
   // Hospital Fleet state (Only hospital can add its ambulances)
-  const [hospitalFleet, setHospitalFleet] = useState([
-    { ambulanceId: 1, vehicleNumber: 'GJ-01-EM-1080', driverName: 'Ramesh Kumar', driverPhone: '9999999999', type: 'Advanced Life Support (ALS)', status: 'Available' },
-    { ambulanceId: 2, vehicleNumber: 'GJ-01-EM-1085', driverName: 'Sanjay Sharma', driverPhone: '9822334411', type: 'Basic Life Support (BLS)', status: 'Available' }
-  ]);
+  const [hospitalFleet, setHospitalFleet] = useState([]);
   const [showAddAmbModal, setShowAddAmbModal] = useState(false);
   const [newAmbPlate, setNewAmbPlate] = useState('');
   const [newAmbDriver, setNewAmbDriver] = useState('');
@@ -51,6 +49,40 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [authMessage, setAuthMessage] = useState('');
   const [vitalsMessage, setVitalsMessage] = useState('');
 
+  // Fetch registered hospitals on mount
+  useEffect(() => {
+    fetch('/api/hospitals')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setRegisteredHospitals(data);
+          const activeHospId = getSession('Hospital')?.hospitalId;
+          if (activeHospId) {
+            const current = data.find((h) => String(h.hospitalId) === String(activeHospId));
+            if (current) {
+              setHospitalName(current.hospitalName);
+              setHospPhone(current.contactNumber);
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch ambulances for quick driver login
+  useEffect(() => {
+    if (subTab === 'driver') {
+      const token = hospitalToken || driverToken;
+      const headers = token ? authHeaders(token) : {};
+      fetch('/api/ambulances', { headers })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) setAllAmbulances(data);
+        })
+        .catch(() => {});
+    }
+  }, [subTab, hospitalToken, driverToken]);
+
   // Tab switching: immediately close session when shifting between hospital and ambulance
   function handleSubTabShift(targetTab) {
     if (targetTab === subTab) return;
@@ -59,7 +91,18 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
     setDriverToken('');
     setSelectedDispatch(null);
     setActiveIncomingEmergency(null);
+    setHospitalFleet([]);
+    setPendingEmergencies([]);
     setSubTab(targetTab);
+  }
+
+  // Complete sign out for hospital
+  function handleHospitalSignOut() {
+    clearSession();
+    setHospitalToken('');
+    setHospitalFleet([]);
+    setPendingEmergencies([]);
+    setActiveIncomingEmergency(null);
   }
 
   // Audio alert chime for new emergency
@@ -90,9 +133,9 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   }
 
   // Real Hospital Login via /api/auth/hospital-login
-  async function performHospitalLogin(customPhone, customName) {
+  async function performHospitalLogin(customPhone, customName, customHospId) {
     const targetPhone = (customPhone || hospPhone || '02652223344').trim();
-    const targetName = (customName || hospitalName || 'City Emergency Trauma Center').trim();
+    const targetName = (customName || hospitalName || '').trim();
     setAuthMessage('');
 
     try {
@@ -108,6 +151,11 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         saveSession({ token: data.token, role: 'Hospital', hospitalId: data.hospitalId });
         setHospitalToken(data.token);
         setHospitalId(String(data.hospitalId));
+        if (customName) setHospitalName(customName);
+        if (customPhone) setHospPhone(customPhone);
+        setHospitalFleet([]);
+        setPendingEmergencies([]);
+        setActiveIncomingEmergency(null);
         return data.token;
       }
 
@@ -155,32 +203,40 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
     if (!hospitalId || !hospitalToken) return;
     const headers = authHeaders(hospitalToken);
 
-    // 1. Load this hospital's ambulances
+    // 1. Load this hospital's ambulances ONLY
     fetch(`/api/hospitals/${hospitalId}/ambulances`, { headers })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (data && data.length > 0) {
-          setHospitalFleet(data);
-          const avail = data.find((a) => a.status === 'Available');
-          if (avail) setSelectedAmbForDispatch(String(avail.ambulanceId));
+        const fleet = Array.isArray(data) ? data : [];
+        setHospitalFleet(fleet);
+        const avail = fleet.find((a) => a.status === 'Available');
+        if (avail) {
+          setSelectedAmbForDispatch(String(avail.ambulanceId));
+        } else if (fleet.length > 0) {
+          setSelectedAmbForDispatch(String(fleet[0].ambulanceId));
+        } else {
+          setSelectedAmbForDispatch('');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setHospitalFleet([]);
+      });
 
     // 2. Load pending emergencies where THIS hospital is nearest
     fetch(`/api/emergency/available-for-hospital/${hospitalId}`, { headers })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) {
-          setPendingEmergencies(data);
-          const newest = data[0];
-          if (newest && newest.requestId !== lastAlertedIdRef.current) {
-            lastAlertedIdRef.current = newest.requestId;
-            playAlertChime();
-          }
+        const list = Array.isArray(data) ? data : [];
+        setPendingEmergencies(list);
+        const newest = list[0];
+        if (newest && newest.requestId !== lastAlertedIdRef.current) {
+          lastAlertedIdRef.current = newest.requestId;
+          playAlertChime();
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setPendingEmergencies([]);
+      });
 
     // 3. Load active incoming dispatches for THIS hospital
     fetch(`/api/dispatch/hospital/${hospitalId}`, { headers })
@@ -189,22 +245,24 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         if (Array.isArray(dispatches)) {
           const active = dispatches.find((d) => d.status !== 'Completed');
           if (active) {
-            const [reqRes, vitalsRes] = await Promise.all([
+            const [reqRes, vitalsRes, ambRes] = await Promise.all([
               fetch(`/api/emergency/${active.requestId}`, { headers }),
-              fetch(`/api/dispatch/${active.dispatchId}/vitals`, { headers })
+              fetch(`/api/dispatch/${active.dispatchId}/vitals`, { headers }),
+              fetch(`/api/ambulances/${active.ambulanceId}`, { headers })
             ]);
             const reqData = reqRes.ok ? await reqRes.json() : null;
             const vitalsData = vitalsRes.ok ? await vitalsRes.json() : null;
-            const amb = hospitalFleet.find((a) => a.ambulanceId === active.ambulanceId);
+            const ambData = ambRes.ok ? await ambRes.json() : null;
+
             setActiveIncomingEmergency({
               dispatchId: active.dispatchId,
               requestId: active.requestId,
               status: active.status,
               patientName: reqData?.patientName || 'Emergency Patient',
               emergencyType: reqData?.emergencyType || 'Accident / Trauma',
-              vehicleNumber: amb?.vehicleNumber || 'GJ-01-EM-1080',
-              driverName: amb?.driverName || 'Ramesh Kumar',
-              driverPhone: amb?.driverPhone || '9999999999',
+              vehicleNumber: ambData?.vehicleNumber || 'Ambulance Unit',
+              driverName: ambData?.driverName || 'Paramedic Driver',
+              driverPhone: ambData?.driverPhone || 'Paramedic Contact',
               vitals: vitalsData
             });
           } else {
@@ -234,14 +292,17 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
     const token = hospitalToken || await performHospitalLogin(hospPhone, hospitalName);
     if (!token) return;
 
+    // Resolve hospital coordinates so ambulance spawns at this hospital
+    const curHosp = registeredHospitals.find((h) => String(h.hospitalId) === String(hospitalId));
+
     const body = {
       hospitalId: Number(hospitalId),
       vehicleNumber: newAmbPlate.trim().toUpperCase(),
       driverName: newAmbDriver.trim(),
       driverPhone: newAmbPhone.trim(),
       type: newAmbType,
-      latitude: 22.31,
-      longitude: 73.19,
+      latitude: curHosp?.latitude || 22.31,
+      longitude: curHosp?.longitude || 73.19,
       status: 'Available'
     };
 
@@ -258,8 +319,10 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       if (res.ok) {
         const created = await res.json();
         setHospitalFleet((prev) => [...prev, created]);
+        setSelectedAmbForDispatch(String(created.ambulanceId));
       } else {
-        setAmbSuccessMsg(`Could not add ambulance (HTTP ${res.status}). Please check your hospital session and try again.`);
+        const detail = await res.text();
+        setAmbSuccessMsg(`Could not add ambulance (HTTP ${res.status}): ${detail}`);
         return;
       }
     } catch (err) {
@@ -268,7 +331,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       return;
     }
 
-    setAmbSuccessMsg(`✓ Ambulance ${newAmbPlate.toUpperCase()} added to hospital fleet!`);
+    setAmbSuccessMsg(`✓ Ambulance ${newAmbPlate.toUpperCase()} added to ${hospitalName}'s fleet!`);
     setNewAmbPlate('');
     setNewAmbDriver('');
     setNewAmbPhone('');
@@ -278,14 +341,24 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
 
   // Hospital assigns an ambulance to a nearby emergency
   async function handleAssignAmbulance(reqId) {
-    const chosenAmbId = Number(selectedAmbPerReq[reqId] || selectedAmbForDispatch) || (hospitalFleet[0]?.ambulanceId ?? 1);
+    if (!hospitalFleet || hospitalFleet.length === 0) {
+      setDispatchSuccessMsg('⚠️ No ambulances available in your hospital fleet. Please add an ambulance first.');
+      return;
+    }
+
+    const chosenAmbId = Number(selectedAmbPerReq[reqId] || selectedAmbForDispatch) || hospitalFleet[0]?.ambulanceId;
     const chosenAmb = hospitalFleet.find((a) => a.ambulanceId === chosenAmbId) || hospitalFleet[0];
+
+    if (!chosenAmb) {
+      setDispatchSuccessMsg('⚠️ Please select a valid ambulance from your fleet.');
+      return;
+    }
 
     const token = hospitalToken || await performHospitalLogin(hospPhone, hospitalName);
     if (!token) return;
 
     try {
-      const acceptRes = await fetch(`/api/emergency/${reqId}/accept?hospitalId=${hospitalId}&ambulanceId=${chosenAmbId}`, {
+      const acceptRes = await fetch(`/api/emergency/${reqId}/accept?hospitalId=${hospitalId}&ambulanceId=${chosenAmb.ambulanceId}`, {
         method: 'POST',
         headers: authHeaders(token)
       });
@@ -308,13 +381,13 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         requestId: assignedReq.requestId,
         patientName: assignedReq.patientName,
         emergencyType: assignedReq.emergencyType,
-        vehicleNumber: chosenAmb?.vehicleNumber || 'GJ-01-EM-1080',
-        driverName: chosenAmb?.driverName || 'Ramesh Kumar',
-        driverPhone: chosenAmb?.driverPhone || '9999999999'
+        vehicleNumber: chosenAmb.vehicleNumber,
+        driverName: chosenAmb.driverName,
+        driverPhone: chosenAmb.driverPhone
       });
     }
 
-    setDispatchSuccessMsg(`✓ Ambulance ${chosenAmb?.vehicleNumber || 'GJ-01-EM-1080'} assigned and dispatched to Emergency #${reqId}!`);
+    setDispatchSuccessMsg(`✓ Ambulance ${chosenAmb.vehicleNumber} (${chosenAmb.driverName}) assigned and dispatched to Emergency #${reqId}!`);
     setPendingEmergencies((prev) => prev.filter((r) => r.requestId !== reqId));
 
     setTimeout(() => {
@@ -349,8 +422,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
           if (Array.isArray(dispatches)) {
             const active = dispatches.find((d) => d.status !== 'Completed');
             if (active) {
-              const reqRes = await fetch(`/api/emergency/${active.requestId}`, { headers: authHeaders(driverToken) });
+              const [reqRes, hospRes] = await Promise.all([
+                fetch(`/api/emergency/${active.requestId}`, { headers: authHeaders(driverToken) }),
+                fetch(`/api/hospitals/${active.hospitalId}`)
+              ]);
               const reqData = reqRes.ok ? await reqRes.json() : null;
+              const hospData = hospRes.ok ? await hospRes.json() : null;
               setSelectedDispatch({
                 dispatchId: active.dispatchId,
                 status: active.status || 'En Route',
@@ -358,8 +435,8 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                 patientPhone: reqData?.patientPhone || '9876543210',
                 emergencyType: reqData?.emergencyType || 'Medical Emergency',
                 address: reqData?.address || 'Vadodara City Area',
-                hospitalName: 'City Emergency Trauma Center',
-                hospitalPhone: '02652223344',
+                hospitalName: hospData?.hospitalName || 'Emergency Trauma Center',
+                hospitalPhone: hospData?.contactNumber || '108',
                 latitude: reqData?.latitude,
                 longitude: reqData?.longitude
               });
@@ -520,69 +597,119 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       {subTab === 'hospital' && (
         <div className="subtab-view-wrap">
           {!hospitalToken ? (
-            /* Simple Hospital Login */
+            /* Hospital Secure Login */
             <div className="simple-auth-card">
               <div className="auth-circle-badge hosp">🏥</div>
               <h2>Hospital ER Reception Login</h2>
-              <p>Receive notifications for nearby emergencies, assign hospital ambulances, and manage ICU beds.</p>
+              <p>Every hospital requires authorized login to access its emergency dispatch queue, ambulance fleet, and trauma bays.</p>
 
-              <button
-                type="button"
-                className="simple-quick-login-btn hosp"
-                onClick={() => performHospitalLogin('02652223344', 'City Emergency Trauma Center')}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  performHospitalLogin(hospPhone, hospitalName);
+                }}
+                className="hospital-login-form"
               >
-                ⚡ 1-Click Quick Start (City Emergency Trauma Center)
-              </button>
+                {/* 1. Select Hospital */}
+                <div className="simple-form-group">
+                  <label>1. Select Hospital to Access</label>
+                  <select
+                    className="simple-select-input"
+                    value={hospitalId}
+                    onChange={(e) => {
+                      const selId = e.target.value;
+                      setHospitalId(selId);
+                      const matched = registeredHospitals.find((h) => String(h.hospitalId) === String(selId));
+                      if (matched) {
+                        setHospitalName(matched.hospitalName);
+                        setHospPhone('');
+                        setAuthMessage('');
+                      } else {
+                        setHospitalName('');
+                        setHospPhone('');
+                      }
+                    }}
+                    required
+                  >
+                    <option value="">-- Choose Hospital to Sign In --</option>
+                    {registeredHospitals.map((h) => (
+                      <option key={h.hospitalId} value={h.hospitalId}>
+                        {h.hospitalName} ({h.address}) — ID #{h.hospitalId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="or-line"><span>OR ENTER DETAILS</span></div>
+                {/* 2. Hospital Name */}
+                <div className="simple-form-group">
+                  <label>2. Hospital Name</label>
+                  <input
+                    type="text"
+                    className="simple-text-input"
+                    placeholder="e.g. City Emergency Trauma Center"
+                    value={hospitalName}
+                    onChange={(e) => setHospitalName(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="simple-form-group">
-                <label>Hospital Name</label>
-                <input
-                  type="text"
-                  className="simple-text-input"
-                  value={hospitalName}
-                  onChange={(e) => setHospitalName(e.target.value)}
-                />
-              </div>
+                {/* 3. Authorized Contact Phone */}
+                <div className="simple-form-group">
+                  <label>3. Registered Contact Phone (Login Credential)</label>
+                  <input
+                    type="tel"
+                    className="simple-text-input"
+                    placeholder="Enter registered hospital phone number"
+                    value={hospPhone}
+                    onChange={(e) => setHospPhone(e.target.value)}
+                    required
+                  />
+                  {hospitalId && (
+                    <div className="login-cred-hint">
+                      <span>
+                        💡 Registered Phone: <strong>{registeredHospitals.find((h) => String(h.hospitalId) === String(hospitalId))?.contactNumber || 'Contact Admin'}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="autofill-cred-btn"
+                        onClick={() => {
+                          const matched = registeredHospitals.find((h) => String(h.hospitalId) === String(hospitalId));
+                          if (matched) setHospPhone(matched.contactNumber);
+                        }}
+                      >
+                        Auto-fill
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              <div className="simple-form-group">
-                <label>Contact Phone</label>
-                <input
-                  type="tel"
-                  className="simple-text-input"
-                  value={hospPhone}
-                  onChange={(e) => setHospPhone(e.target.value)}
-                />
-              </div>
+                <button
+                  type="submit"
+                  className="simple-primary-btn"
+                  disabled={!hospitalName || !hospPhone}
+                >
+                  🔐 Log In to {hospitalName || 'Hospital'} ER Console
+                </button>
 
-              <button
-                type="button"
-                className="simple-primary-btn"
-                onClick={() => performHospitalLogin(hospPhone, hospitalName)}
-              >
-                Open Hospital ER Console
-              </button>
-              {authMessage && <p className="status-message error">{authMessage}</p>}
+                {authMessage && <p className="status-message error">{authMessage}</p>}
+              </form>
             </div>
           ) : (
             /* Active Hospital Console */
             <div className="hospital-active-wrap">
               {/* Top Status Bar: Hospital Name & Sign Out */}
               <div className="hospital-profile-bar">
-                <div>
+                <div className="hosp-bar-info">
                   <strong>🏥 {hospitalName}</strong>
                   <span className="hosp-phone-tag">📞 {hospPhone}</span>
+                  <span className="hosp-zone-tag">📍 Hospital ID #{hospitalId}</span>
                 </div>
                 <button
                   type="button"
                   className="text-signout-btn"
-                  onClick={() => {
-                    clearSession();
-                    setHospitalToken('');
-                  }}
+                  onClick={handleHospitalSignOut}
                 >
-                  Sign Out
+                  ⇄ Switch Hospital / Sign Out
                 </button>
               </div>
 
@@ -629,30 +756,45 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
 
                         {/* Assign Ambulance from Hospital's Own Fleet */}
                         <div className="assign-ambulance-controls">
-                          <label className="assign-label">ASSIGN AMBULANCE FROM YOUR FLEET:</label>
-                          <select
-                            className="simple-select-input"
-                            value={selectedAmbPerReq[req.requestId] || selectedAmbForDispatch || (hospitalFleet[0]?.ambulanceId ?? '1')}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedAmbPerReq((prev) => ({ ...prev, [req.requestId]: val }));
-                              setSelectedAmbForDispatch(val);
-                            }}
-                          >
-                            {hospitalFleet.map((amb) => (
-                              <option key={amb.ambulanceId} value={amb.ambulanceId}>
-                                {amb.vehicleNumber} ({amb.driverName} - {amb.status})
-                              </option>
-                            ))}
-                          </select>
+                          <label className="assign-label">ASSIGN AMBULANCE FROM {hospitalName.toUpperCase()} FLEET:</label>
+                          {hospitalFleet.length === 0 ? (
+                            <div className="no-amb-fleet-notice">
+                              <span>⚠️ No ambulances registered in {hospitalName}'s fleet.</span>
+                              <button
+                                type="button"
+                                className="add-amb-inline-link"
+                                onClick={() => setShowAddAmbModal(true)}
+                              >
+                                + Add an Ambulance to Fleet
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <select
+                                className="simple-select-input"
+                                value={selectedAmbPerReq[req.requestId] || selectedAmbForDispatch || (hospitalFleet[0]?.ambulanceId ?? '')}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setSelectedAmbPerReq((prev) => ({ ...prev, [req.requestId]: val }));
+                                  setSelectedAmbForDispatch(val);
+                                }}
+                              >
+                                {hospitalFleet.map((amb) => (
+                                  <option key={amb.ambulanceId} value={amb.ambulanceId}>
+                                    {amb.vehicleNumber} ({amb.driverName} - {amb.status})
+                                  </option>
+                                ))}
+                              </select>
 
-                          <button
-                            type="button"
-                            className="assign-dispatch-btn"
-                            onClick={() => handleAssignAmbulance(req.requestId)}
-                          >
-                            🚑 Assign Ambulance & Dispatch
-                          </button>
+                              <button
+                                type="button"
+                                className="assign-dispatch-btn"
+                                onClick={() => handleAssignAmbulance(req.requestId)}
+                              >
+                                🚑 Assign Ambulance & Dispatch
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -681,8 +823,8 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
               <div className="simple-card fleet-management-card">
                 <div className="fleet-card-header">
                   <div>
-                    <h3>🚑 Hospital Ambulance Fleet ({hospitalFleet.length} Registered)</h3>
-                    <p>Only your hospital can manage and register its own ambulance vehicles.</p>
+                    <h3>🚑 {hospitalName} Ambulance Fleet ({hospitalFleet.length} Registered)</h3>
+                    <p>Only {hospitalName} can manage and dispatch its own fleet.</p>
                   </div>
                   <button
                     type="button"
@@ -693,37 +835,44 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                   </button>
                 </div>
 
-                <div className="hospital-fleet-grid">
-                  {hospitalFleet.map((amb) => (
-                    <div key={amb.ambulanceId} className="hospital-amb-item">
-                      <div className="amb-item-top">
-                        <div className="amb-plate-badge">{amb.vehicleNumber}</div>
-                        <span className={`amb-status-chip ${amb.status === 'Available' ? 'avail' : 'busy'}`}>
-                          {amb.status}
-                        </span>
-                      </div>
+                {hospitalFleet.length === 0 ? (
+                  <div className="empty-fleet-state">
+                    <p>No ambulances currently registered to {hospitalName}.</p>
+                    <small>Click "+ Add New Ambulance" above to register vehicles to your hospital's fleet.</small>
+                  </div>
+                ) : (
+                  <div className="hospital-fleet-grid">
+                    {hospitalFleet.map((amb) => (
+                      <div key={amb.ambulanceId} className="hospital-amb-item">
+                        <div className="amb-item-top">
+                          <div className="amb-plate-badge">{amb.vehicleNumber}</div>
+                          <span className={`amb-status-chip ${amb.status === 'Available' ? 'avail' : 'busy'}`}>
+                            {amb.status}
+                          </span>
+                        </div>
 
-                      <div className="amb-driver-details">
-                        <p><strong>Driver:</strong> {amb.driverName}</p>
-                        <p><strong>Phone:</strong> {amb.driverPhone}</p>
-                        <p className="amb-type-tag">{amb.type || 'Advanced Life Support'}</p>
-                      </div>
+                        <div className="amb-driver-details">
+                          <p><strong>Driver:</strong> {amb.driverName}</p>
+                          <p><strong>Phone:</strong> {amb.driverPhone}</p>
+                          <p className="amb-type-tag">{amb.type || 'Advanced Life Support'}</p>
+                        </div>
 
-                      <div className="amb-actions-row">
-                        <a href={`tel:${amb.driverPhone}`} className="amb-call-link">
-                          📞 Call Driver
-                        </a>
-                        <button
-                          type="button"
-                          className="amb-remove-btn"
-                          onClick={() => handleRemoveAmbulance(amb.ambulanceId)}
-                        >
-                          ✕ Remove
-                        </button>
+                        <div className="amb-actions-row">
+                          <a href={`tel:${amb.driverPhone}`} className="amb-call-link">
+                            📞 Call Driver
+                          </a>
+                          <button
+                            type="button"
+                            className="amb-remove-btn"
+                            onClick={() => handleRemoveAmbulance(amb.ambulanceId)}
+                          >
+                            ✕ Remove
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Modal: Add New Ambulance to Hospital Fleet */}
@@ -910,50 +1059,97 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       {subTab === 'driver' && (
         <div className="subtab-view-wrap">
           {!driverToken ? (
-            /* Simple Driver Login */
+            /* Ambulance Driver Secure Login */
             <div className="simple-auth-card">
               <div className="auth-circle-badge">🚑</div>
               <h2>Ambulance Driver Login</h2>
-              <p>Sign in to your ambulance terminal to receive calls and broadcast live GPS.</p>
+              <p>Every ambulance driver requires authentication to receive emergency dispatches and broadcast live GPS.</p>
 
-              <button
-                type="button"
-                className="simple-quick-login-btn"
-                onClick={() => performDriverLogin('9999999999', 'GJ-01-EM-1080')}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  performDriverLogin(driverPhone, vehicleNumber);
+                }}
+                className="hospital-login-form"
               >
-                ⚡ 1-Click Quick Start (Ambulance GJ-01-EM-1080)
-              </button>
+                {/* 1. Quick Select Ambulance Vehicle */}
+                <div className="simple-form-group">
+                  <label>1. Select Ambulance Vehicle</label>
+                  <select
+                    className="simple-select-input"
+                    value={vehicleNumber}
+                    onChange={(e) => {
+                      const selPlate = e.target.value;
+                      setVehicleNumber(selPlate);
+                      const matched = allAmbulances.find((a) => a.vehicleNumber === selPlate);
+                      if (matched) {
+                        setAmbulanceId(String(matched.ambulanceId));
+                        setDriverPhone('');
+                        setAuthMessage('');
+                      }
+                    }}
+                  >
+                    <option value="">-- Choose Assigned Ambulance Vehicle --</option>
+                    {allAmbulances.map((amb) => (
+                      <option key={amb.ambulanceId} value={amb.vehicleNumber}>
+                        {amb.vehicleNumber} ({amb.driverName} - Hospital #{amb.hospitalId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="or-line"><span>OR ENTER DETAILS</span></div>
+                <div className="simple-form-group">
+                  <label>2. Vehicle Plate Number</label>
+                  <input
+                    type="text"
+                    className="simple-text-input"
+                    placeholder="e.g. GJ-01-EM-1080"
+                    value={vehicleNumber}
+                    onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                    required
+                  />
+                </div>
 
-              <div className="simple-form-group">
-                <label>Vehicle Plate Number</label>
-                <input
-                  type="text"
-                  className="simple-text-input"
-                  value={vehicleNumber}
-                  onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
-                />
-              </div>
+                <div className="simple-form-group">
+                  <label>3. Driver Registered Phone Number</label>
+                  <input
+                    type="tel"
+                    className="simple-text-input"
+                    placeholder="Enter registered driver phone"
+                    value={driverPhone}
+                    onChange={(e) => setDriverPhone(e.target.value)}
+                    required
+                  />
+                  {vehicleNumber && (
+                    <div className="login-cred-hint">
+                      <span>
+                        💡 Registered Phone: <strong>{allAmbulances.find((a) => a.vehicleNumber === vehicleNumber)?.driverPhone || '9999999999'}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="autofill-cred-btn"
+                        onClick={() => {
+                          const matched = allAmbulances.find((a) => a.vehicleNumber === vehicleNumber);
+                          if (matched) setDriverPhone(matched.driverPhone);
+                          else setDriverPhone('9999999999');
+                        }}
+                      >
+                        Auto-fill
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              <div className="simple-form-group">
-                <label>Driver Phone Number</label>
-                <input
-                  type="tel"
-                  className="simple-text-input"
-                  value={driverPhone}
-                  onChange={(e) => setDriverPhone(e.target.value)}
-                />
-              </div>
+                <button
+                  type="submit"
+                  className="simple-primary-btn"
+                  disabled={!vehicleNumber || !driverPhone}
+                >
+                  🔐 Sign In to Ambulance Terminal
+                </button>
 
-              <button
-                type="button"
-                className="simple-primary-btn"
-                onClick={() => performDriverLogin(driverPhone, vehicleNumber)}
-              >
-                Sign In to Ambulance
-              </button>
-              {authMessage && <p className="status-message error">{authMessage}</p>}
+                {authMessage && <p className="status-message error">{authMessage}</p>}
+              </form>
             </div>
           ) : (
             /* Active Driver Terminal */
@@ -1018,21 +1214,6 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                             );
                           })}
                         </div>
-                      </div>
-
-                      {/* Green Corridor Switch */}
-                      <div className="green-corridor-row">
-                        <div>
-                          <strong>🚦 Green Corridor Traffic Preemption</strong>
-                          <p>Turn city traffic signals green along your ambulance route.</p>
-                        </div>
-                        <button
-                          type="button"
-                          className={`green-switch-btn ${greenCorridor ? 'active' : ''}`}
-                          onClick={() => setGreenCorridor(!greenCorridor)}
-                        >
-                          {greenCorridor ? '🟢 Corridor Active' : '⚡ Request Green Clearance'}
-                        </button>
                       </div>
                     </div>
 
@@ -1129,10 +1310,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                   <span className="dest-eyebrow">
                     {selectedDispatch ? 'DESTINATION EMERGENCY ROOM' : 'BASE HOSPITAL STATION'}
                   </span>
-                  <h4>{selectedDispatch?.hospitalName || 'City Emergency Trauma Center'}</h4>
-                  <a href={`tel:${selectedDispatch?.hospitalPhone || '02652223344'}`} className="hospital-call-btn">
-                    📞 Call Hospital ER ({selectedDispatch?.hospitalPhone || '02652223344'})
-                  </a>
+                  <h4>{selectedDispatch?.hospitalName || 'Designated Base Hospital ER'}</h4>
+                  {selectedDispatch?.hospitalPhone && (
+                    <a href={`tel:${selectedDispatch.hospitalPhone}`} className="hospital-call-btn">
+                      📞 Call Hospital ER ({selectedDispatch.hospitalPhone})
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

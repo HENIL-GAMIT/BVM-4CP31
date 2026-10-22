@@ -31,9 +31,11 @@ const emergencyTypes = [
 ];
 
 const quickLocations = [
-  { label: 'Railway Station', address: 'Station Road, Near Platform 1, Vadodara', lat: 22.3102, lng: 73.1812 },
-  { label: 'Alkapuri Circle', address: 'Alkapuri Main Rd, Vadodara', lat: 22.3085, lng: 73.1720 },
-  { label: 'Sayajigunj Tower', address: 'Sayajigunj Circle, Vadodara', lat: 22.3040, lng: 73.1870 }
+  { label: 'Vadodara - Railway Station', address: 'Station Road, Near Platform 1, Vadodara', lat: 22.3102, lng: 73.1812 },
+  { label: 'Vadodara - Alkapuri Circle', address: 'Alkapuri Main Rd, Vadodara', lat: 22.3085, lng: 73.1720 },
+  { label: 'Vadodara - Sayajigunj Tower', address: 'Sayajigunj Circle, Vadodara', lat: 22.3040, lng: 73.1870 },
+  { label: 'Anand - Railway Station', address: 'Railway Station Road, Anand', lat: 22.5640, lng: 72.9640 },
+  { label: 'Anand - Amul Dairy Area', address: 'Amul Dairy Road, Anand', lat: 22.5560, lng: 72.9510 }
 ];
 
 export default function CitizenEmergencyView() {
@@ -46,6 +48,10 @@ export default function CitizenEmergencyView() {
   const [priority, setPriority] = useState('Critical');
   const [statusMsg, setStatusMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Dynamically detected nearest hospital
+  const [nearestHospital, setNearestHospital] = useState(null);
+  const [nearestDistanceKm, setNearestDistanceKm] = useState(null);
 
   // Active tracking state
   const [request, setRequest] = useState(null);
@@ -67,6 +73,25 @@ export default function CitizenEmergencyView() {
   const [lookupError, setLookupError] = useState('');
 
   const timer = useRef(null);
+
+  // Search nearest hospital dynamically whenever coordinates change
+  useEffect(() => {
+    if (!lat || !lng) return;
+    let cancelled = false;
+    fetch(`/api/hospitals/nearest?lat=${lat}&lng=${lng}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((hosp) => {
+        if (!cancelled && hosp) {
+          setNearestHospital(hosp);
+          const d = calculateDistanceKm(lat, lng, hosp.latitude, hosp.longitude);
+          setNearestDistanceKm(d);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng]);
 
   // Restore active tracking if exists
   useEffect(() => {
@@ -164,7 +189,8 @@ export default function CitizenEmergencyView() {
   // Submit emergency request
   async function handleSubmit() {
     setLoading(true);
-    setStatusMsg('Dispatching ambulance to your location...');
+    const targetHospName = nearestHospital?.hospitalName || 'nearest hospital ER';
+    setStatusMsg(`Connecting to ${targetHospName}... Alerting emergency dispatch unit...`);
 
     const body = {
       patientName: name.trim() || 'Emergency Patient',
@@ -173,7 +199,7 @@ export default function CitizenEmergencyView() {
       priority,
       latitude: parseFloat(lat),
       longitude: parseFloat(lng),
-      address: address.trim() || 'Vadodara City Area'
+      address: address.trim() || (nearestHospital ? `Emergency location near ${nearestHospital.hospitalName} area` : 'Emergency Location')
     };
 
     try {
@@ -195,10 +221,18 @@ export default function CitizenEmergencyView() {
         setStatusMsg('');
       } else {
         const errText = await res.text();
-        setStatusMsg('Request received. Connecting to nearest dispatch...');
+        setStatusMsg('Request received. Forwarding to nearest hospital ER...');
       }
     } catch (e) {
       // Offline fallback simulation
+      const mockHosp = nearestHospital || {
+        hospitalId: 1,
+        hospitalName: 'City Emergency Trauma Center',
+        contactNumber: '02652223344',
+        address: 'Station Road, Vadodara',
+        latitude: parseFloat(lat) + 0.012,
+        longitude: parseFloat(lng) + 0.009
+      };
       const mockReq = {
         requestId: Math.floor(100 + Math.random() * 900),
         patientName: name || 'Emergency Patient',
@@ -207,28 +241,15 @@ export default function CitizenEmergencyView() {
         priority,
         latitude: parseFloat(lat),
         longitude: parseFloat(lng),
-        address: address,
-        status: 'Dispatched'
+        address: address || 'Emergency Location',
+        status: 'Pending'
       };
       setRequest(mockReq);
       setTracking({
         request: mockReq,
-        dispatch: { dispatchId: 101, status: 'En Route to Patient' },
-        ambulance: {
-          ambulanceId: 1,
-          vehicleNumber: 'GJ-01-EM-1080',
-          driverName: 'Ramesh Kumar',
-          driverPhone: '9999999999',
-          type: 'Advanced Life Support (ICU Ambulance)',
-          latitude: parseFloat(lat) + 0.012,
-          longitude: parseFloat(lng) + 0.009
-        },
-        hospital: {
-          hospitalId: 1,
-          hospitalName: 'City Emergency Trauma Center',
-          contactNumber: '02652223344',
-          address: 'Station Road, Vadodara'
-        }
+        dispatch: null,
+        ambulance: null,
+        hospital: mockHosp
       });
       setStatusMsg('');
     } finally {
@@ -317,15 +338,16 @@ export default function CitizenEmergencyView() {
   const isTracking = Boolean(request || tracking);
   const isAssigned = Boolean(tracking?.dispatch || tracking?.ambulance || (request?.status && request?.status !== 'Pending'));
   const currentStatus = tracking?.dispatch?.status || request?.status || 'Pending';
+  const hospToDisplay = tracking?.hospital || nearestHospital;
 
   function getFriendlyStatus(status) {
     switch (status) {
       case 'Pending':
-        return 'Nearest Hospital Alerted — Awaiting Ambulance Assignment';
+        return `Nearest Hospital Alerted (${hospToDisplay?.hospitalName || 'Trauma ER'}) — Awaiting Ambulance Assignment`;
       case 'Accepted':
       case 'Accepted by Hospital':
       case 'Assigned':
-        return 'Ambulance Assigned & Dispatched to Your Location';
+        return `Ambulance Dispatched by ${hospToDisplay?.hospitalName || 'Hospital'} to Your Location`;
       case 'En Route':
       case 'Ambulance En Route':
         return 'Paramedic Ambulance En Route to Your Location';
@@ -335,18 +357,18 @@ export default function CitizenEmergencyView() {
         return 'Ambulance Arrived at Your Location';
       case 'Transporting':
       case 'Transporting to Hospital':
-        return 'Transporting Patient to Hospital Emergency Room';
+        return `Transporting Patient to ${hospToDisplay?.hospitalName || 'Hospital ER'}`;
       case 'Completed':
         return 'Emergency Mission Completed';
       default:
-        return status ? `Status: ${status}` : 'Ambulance Assigned & En Route';
+        return status ? `Status: ${status}` : 'Ambulance Dispatched & En Route';
     }
   }
 
   const patientLat = parseFloat(request?.latitude || lat);
   const patientLng = parseFloat(request?.longitude || lng);
-  const hospitalLat = parseFloat(tracking?.hospital?.latitude || 22.31);
-  const hospitalLng = parseFloat(tracking?.hospital?.longitude || 73.19);
+  const hospitalLat = parseFloat(hospToDisplay?.latitude || 22.31);
+  const hospitalLng = parseFloat(hospToDisplay?.longitude || 73.19);
 
   const curAmbLat = tracking?.ambulance?.latitude != null ? tracking.ambulance.latitude : (simAmbPos ? simAmbPos.lat : null);
   const curAmbLng = tracking?.ambulance?.longitude != null ? tracking.ambulance.longitude : (simAmbPos ? simAmbPos.lng : null);
@@ -370,11 +392,11 @@ export default function CitizenEmergencyView() {
           label: `🚑 Ambulance (${tracking?.ambulance?.vehicleNumber || '108'})`
         }
       : null,
-    tracking?.hospital
+    hospToDisplay && hospToDisplay.latitude != null && hospToDisplay.longitude != null
       ? {
           latitude: hospitalLat,
           longitude: hospitalLng,
-          label: `🏥 ${tracking.hospital.hospitalName}`
+          label: `🏥 ${hospToDisplay.hospitalName}`
         }
       : null
   ].filter(Boolean);
@@ -390,7 +412,7 @@ export default function CitizenEmergencyView() {
           destination: {
             lat: targetLat,
             lng: targetLng,
-            label: isTransporting ? `Hospital: ${tracking?.hospital?.hospitalName || 'ER'}` : 'Your Pickup Location'
+            label: isTransporting ? `Hospital: ${hospToDisplay?.hospitalName || 'ER'}` : 'Your Pickup Location'
           }
         }
       : null;
@@ -482,6 +504,21 @@ export default function CitizenEmergencyView() {
                 </button>
               ))}
             </div>
+
+            {/* Nearest Hospital Identification Preview */}
+            {nearestHospital && (
+              <div className="nearest-hospital-preview-badge">
+                <div className="nh-preview-top">
+                  <span className="nh-tag">🏥 NEAREST HOSPITAL IDENTIFIED</span>
+                  {nearestDistanceKm !== null && (
+                    <span className="nh-km-pill">~{nearestDistanceKm.toFixed(1)} km away</span>
+                  )}
+                </div>
+                <h4>{nearestHospital.hospitalName}</h4>
+                <p>📍 {nearestHospital.address} • 📞 {nearestHospital.contactNumber}</p>
+                <small className="nh-route-note">✓ Distress call will route directly to {nearestHospital.hospitalName} ER console</small>
+              </div>
+            )}
           </div>
 
           {/* 3. Contact Info */}
@@ -527,8 +564,8 @@ export default function CitizenEmergencyView() {
               <span className="dispatch-badge">EMERGENCY CALL #{request?.requestId || 101}</span>
               <h2>{getFriendlyStatus(currentStatus)}</h2>
               <p>
-                {tracking?.hospital?.hospitalName ? (
-                  <>🏥 <strong>{tracking.hospital.hospitalName}</strong> assigned an emergency response unit.</>
+                {hospToDisplay?.hospitalName ? (
+                  <>🏥 <strong>{hospToDisplay.hospitalName}</strong> {isAssigned ? 'dispatched an emergency ambulance unit.' : 'alerted — awaiting ambulance assignment from their fleet.'}</>
                 ) : (
                   <>Type: <strong>{request?.emergencyType}</strong> • Pickup: <strong>{request?.address}</strong></>
                 )}
@@ -606,8 +643,10 @@ export default function CitizenEmergencyView() {
                   <div className="info-icon" style={{ filter: 'grayscale(0.4)' }}>⏳</div>
                   <div className="info-content">
                     <span className="info-label" style={{ color: '#d97706' }}>AMBULANCE ALLOCATION</span>
-                    <h4 style={{ color: '#334155' }}>Searching Nearest Ambulance...</h4>
-                    <p style={{ color: '#64748b' }}>Hospital ER is dispatching an available emergency unit to your location.</p>
+                    <h4 style={{ color: '#334155' }}>Awaiting Hospital ER Assignment...</h4>
+                    <p style={{ color: '#64748b' }}>
+                      <strong>{hospToDisplay?.hospitalName || 'Nearest Hospital ER'}</strong> has received your distress request and is dispatching an ambulance from its fleet.
+                    </p>
                   </div>
                 </div>
               )}
@@ -616,9 +655,20 @@ export default function CitizenEmergencyView() {
               <div className="hospital-info-box">
                 <div className="info-icon">🏥</div>
                 <div className="info-content">
-                  <span className="info-label">RECEIVING TRAUMA CENTER</span>
-                  <h4>{tracking?.hospital?.hospitalName || 'City Emergency Trauma Center'}</h4>
-                  <p>{tracking?.hospital?.address || 'Station Road, Vadodara'}</p>
+                  <span className="info-label">
+                    {isAssigned ? 'RECEIVING TRAUMA CENTER & BASE' : 'NEAREST EMERGENCY HOSPITAL (ALERTED)'}
+                  </span>
+                  <h4>{hospToDisplay?.hospitalName || 'Emergency Trauma Center'}</h4>
+                  <p>{hospToDisplay?.address || 'Designated Trauma Center'}</p>
+                  {hospToDisplay?.contactNumber && (
+                    <a
+                      href={`tel:${hospToDisplay.contactNumber}`}
+                      className="call-hosp-btn-link"
+                      style={{ display: 'inline-block', marginTop: 4, fontSize: '0.82rem', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
+                    >
+                      📞 Call Hospital ER ({hospToDisplay.contactNumber})
+                    </a>
+                  )}
                 </div>
               </div>
 
