@@ -8,6 +8,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   // Driver state
   const [ambulanceId, setAmbulanceId] = useState(() => getSession('Driver')?.ambulanceId || '');
   const [driverPhone, setDriverPhone] = useState('');
+  const [driverPassword, setDriverPassword] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [driverToken, setDriverToken] = useState(() => (initialSubTab === 'driver' ? getSession('Driver')?.token || '' : ''));
   const [driverCoords, setDriverCoords] = useState({ latitude: 22.3150, longitude: 73.1850 });
@@ -21,10 +22,10 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   // Hospital state
   const [hospitalId, setHospitalId] = useState(() => getSession('Hospital')?.hospitalId || '');
   const [hospPhone, setHospPhone] = useState('');
+  const [hospitalPassword, setHospitalPassword] = useState('');
   const [hospitalName, setHospitalName] = useState('');
   const [hospitalToken, setHospitalToken] = useState(() => (initialSubTab === 'hospital' ? getSession('Hospital')?.token || '' : ''));
   const [registeredHospitals, setRegisteredHospitals] = useState([]);
-  const [allAmbulances, setAllAmbulances] = useState([]);
   const [icuAvailable, setIcuAvailable] = useState(2);
   const [traumaBayStatus, setTraumaBayStatus] = useState('Ready');
   const [traumaAlerted, setTraumaAlerted] = useState(false);
@@ -38,6 +39,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   const [newAmbPlate, setNewAmbPlate] = useState('');
   const [newAmbDriver, setNewAmbDriver] = useState('');
   const [newAmbPhone, setNewAmbPhone] = useState('');
+  const [newAmbPassword, setNewAmbPassword] = useState('');
   const [newAmbType, setNewAmbType] = useState('Advanced Life Support (ALS)');
   const [ambSuccessMsg, setAmbSuccessMsg] = useState('');
 
@@ -61,27 +63,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
             const current = data.find((h) => String(h.hospitalId) === String(activeHospId));
             if (current) {
               setHospitalName(current.hospitalName);
-              setHospPhone(current.contactNumber);
             }
           }
         }
       })
       .catch(() => {});
   }, []);
-
-  // Fetch ambulances for quick driver login
-  useEffect(() => {
-    if (subTab === 'driver') {
-      const token = hospitalToken || driverToken;
-      const headers = token ? authHeaders(token) : {};
-      fetch('/api/ambulances', { headers })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => {
-          if (Array.isArray(data)) setAllAmbulances(data);
-        })
-        .catch(() => {});
-    }
-  }, [subTab, hospitalToken, driverToken]);
 
   // Tab switching: immediately close session when shifting between hospital and ambulance
   function handleSubTabShift(targetTab) {
@@ -133,16 +120,21 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   }
 
   // Real Hospital Login via /api/auth/hospital-login
-  async function performHospitalLogin(customPhone, customName, customHospId) {
-    const targetPhone = (customPhone || hospPhone || '02652223344').trim();
+  async function performHospitalLogin(customPhone, customName, customHospId, customPassword) {
+    const targetPhone = (customPhone || hospPhone || '').trim();
     const targetName = (customName || hospitalName || '').trim();
+    const password = customPassword ?? hospitalPassword;
     setAuthMessage('');
+    if (!targetPhone || !password) {
+      setAuthMessage('Enter the registered hospital phone and password.');
+      return null;
+    }
 
     try {
       const res = await fetch('/api/auth/hospital-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: targetPhone, hospitalName: targetName })
+        body: JSON.stringify({ phone: targetPhone, hospitalName: targetName, password })
       });
 
       if (res.ok) {
@@ -151,6 +143,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         saveSession({ token: data.token, role: 'Hospital', hospitalId: data.hospitalId });
         setHospitalToken(data.token);
         setHospitalId(String(data.hospitalId));
+        setHospitalPassword('');
         if (customName) setHospitalName(customName);
         if (customPhone) setHospPhone(customPhone);
         setHospitalFleet([]);
@@ -169,16 +162,21 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   }
 
   // Real Driver Login via /api/auth/driver-login
-  async function performDriverLogin(customPhone, customPlate) {
-    const targetPhone = (customPhone || driverPhone || '9999999999').trim();
-    const targetPlate = (customPlate || vehicleNumber || 'GJ-01-EM-1080').trim().toUpperCase();
+  async function performDriverLogin(customPhone, customPlate, customPassword) {
+    const targetPhone = (customPhone || driverPhone || '').trim();
+    const targetPlate = (customPlate || vehicleNumber || '').trim().toUpperCase();
+    const password = customPassword ?? driverPassword;
     setAuthMessage('');
+    if (!targetPhone || !targetPlate || !password) {
+      setAuthMessage('Enter the registered phone, vehicle plate, and password.');
+      return null;
+    }
 
     try {
       const res = await fetch('/api/auth/driver-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: targetPhone, vehicleNumber: targetPlate })
+        body: JSON.stringify({ phone: targetPhone, vehicleNumber: targetPlate, password })
       });
 
       if (res.ok) {
@@ -187,6 +185,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         saveSession({ token: data.token, role: 'Driver', ambulanceId: data.ambulanceId });
         setDriverToken(data.token);
         setAmbulanceId(String(data.ambulanceId));
+        setDriverPassword('');
         return data.token;
       }
       const detail = await res.text();
@@ -284,8 +283,8 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
   // Hospital adds an ambulance to its own fleet
   async function handleAddAmbulance(e) {
     e.preventDefault();
-    if (!newAmbPlate || !newAmbDriver || !newAmbPhone) {
-      alert('Please fill in vehicle plate, driver name and phone number.');
+    if (!newAmbPlate || !newAmbDriver || !newAmbPhone || !newAmbPassword) {
+      alert('Please fill in vehicle plate, driver name, phone number, and a password.');
       return;
     }
 
@@ -300,6 +299,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       vehicleNumber: newAmbPlate.trim().toUpperCase(),
       driverName: newAmbDriver.trim(),
       driverPhone: newAmbPhone.trim(),
+      password: newAmbPassword,
       type: newAmbType,
       latitude: curHosp?.latitude || 22.31,
       longitude: curHosp?.longitude || 73.19,
@@ -320,6 +320,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
         const created = await res.json();
         setHospitalFleet((prev) => [...prev, created]);
         setSelectedAmbForDispatch(String(created.ambulanceId));
+        setNewAmbPassword('');
       } else {
         const detail = await res.text();
         setAmbSuccessMsg(`Could not add ambulance (HTTP ${res.status}): ${detail}`);
@@ -335,6 +336,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
     setNewAmbPlate('');
     setNewAmbDriver('');
     setNewAmbPhone('');
+    setNewAmbPassword('');
     setShowAddAmbModal(false);
     setTimeout(() => setAmbSuccessMsg(''), 3500);
   }
@@ -655,38 +657,33 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
 
                 {/* 3. Authorized Contact Phone */}
                 <div className="simple-form-group">
-                  <label>3. Registered Contact Phone (Login Credential)</label>
+                  <label>3. Registered Contact Phone (Private Credential)</label>
                   <input
                     type="tel"
                     className="simple-text-input"
-                    placeholder="Enter registered hospital phone number"
+                    placeholder="Enter registered hospital contact phone"
                     value={hospPhone}
                     onChange={(e) => setHospPhone(e.target.value)}
                     required
                   />
-                  {hospitalId && (
-                    <div className="login-cred-hint">
-                      <span>
-                        💡 Registered Phone: <strong>{registeredHospitals.find((h) => String(h.hospitalId) === String(hospitalId))?.contactNumber || 'Contact Admin'}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        className="autofill-cred-btn"
-                        onClick={() => {
-                          const matched = registeredHospitals.find((h) => String(h.hospitalId) === String(hospitalId));
-                          if (matched) setHospPhone(matched.contactNumber);
-                        }}
-                      >
-                        Auto-fill
-                      </button>
-                    </div>
-                  )}
+                </div>
+                <div className="simple-form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="simple-text-input"
+                    autoComplete="current-password"
+                    placeholder="Enter hospital password"
+                    value={hospitalPassword}
+                    onChange={(e) => setHospitalPassword(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <button
                   type="submit"
                   className="simple-primary-btn"
-                  disabled={!hospitalName || !hospPhone}
+                  disabled={!hospitalName || !hospPhone || !hospitalPassword}
                 >
                   🔐 Log In to {hospitalName || 'Hospital'} ER Console
                 </button>
@@ -922,6 +919,19 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                       </div>
 
                       <div>
+                        <label>Driver Password (at least 12 characters)</label>
+                        <input
+                          type="password"
+                          className="simple-text-input"
+                          autoComplete="new-password"
+                          minLength={12}
+                          value={newAmbPassword}
+                          onChange={(e) => setNewAmbPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div>
                         <label>Ambulance Type / Equipment</label>
                         <select
                           className="simple-text-input"
@@ -1072,38 +1082,12 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                 }}
                 className="hospital-login-form"
               >
-                {/* 1. Quick Select Ambulance Vehicle */}
                 <div className="simple-form-group">
-                  <label>1. Select Ambulance Vehicle</label>
-                  <select
-                    className="simple-select-input"
-                    value={vehicleNumber}
-                    onChange={(e) => {
-                      const selPlate = e.target.value;
-                      setVehicleNumber(selPlate);
-                      const matched = allAmbulances.find((a) => a.vehicleNumber === selPlate);
-                      if (matched) {
-                        setAmbulanceId(String(matched.ambulanceId));
-                        setDriverPhone('');
-                        setAuthMessage('');
-                      }
-                    }}
-                  >
-                    <option value="">-- Choose Assigned Ambulance Vehicle --</option>
-                    {allAmbulances.map((amb) => (
-                      <option key={amb.ambulanceId} value={amb.vehicleNumber}>
-                        {amb.vehicleNumber} ({amb.driverName} - Hospital #{amb.hospitalId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="simple-form-group">
-                  <label>2. Vehicle Plate Number</label>
+                  <label>Ambulance Vehicle Plate Number</label>
                   <input
                     type="text"
                     className="simple-text-input"
-                    placeholder="e.g. GJ-01-EM-1080"
+                    placeholder="Enter assigned vehicle plate (e.g. GJ-01-EM-1080)"
                     value={vehicleNumber}
                     onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
                     required
@@ -1111,39 +1095,33 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                 </div>
 
                 <div className="simple-form-group">
-                  <label>3. Driver Registered Phone Number</label>
+                  <label>Driver Registered Phone Number (Private Credential)</label>
                   <input
                     type="tel"
                     className="simple-text-input"
-                    placeholder="Enter registered driver phone"
+                    placeholder="Enter registered driver phone number"
                     value={driverPhone}
                     onChange={(e) => setDriverPhone(e.target.value)}
                     required
                   />
-                  {vehicleNumber && (
-                    <div className="login-cred-hint">
-                      <span>
-                        💡 Registered Phone: <strong>{allAmbulances.find((a) => a.vehicleNumber === vehicleNumber)?.driverPhone || '9999999999'}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        className="autofill-cred-btn"
-                        onClick={() => {
-                          const matched = allAmbulances.find((a) => a.vehicleNumber === vehicleNumber);
-                          if (matched) setDriverPhone(matched.driverPhone);
-                          else setDriverPhone('9999999999');
-                        }}
-                      >
-                        Auto-fill
-                      </button>
-                    </div>
-                  )}
+                </div>
+                <div className="simple-form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="simple-text-input"
+                    autoComplete="current-password"
+                    placeholder="Enter driver password"
+                    value={driverPassword}
+                    onChange={(e) => setDriverPassword(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <button
                   type="submit"
                   className="simple-primary-btn"
-                  disabled={!vehicleNumber || !driverPhone}
+                  disabled={!vehicleNumber || !driverPhone || !driverPassword}
                 >
                   🔐 Sign In to Ambulance Terminal
                 </button>

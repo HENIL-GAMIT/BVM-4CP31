@@ -228,7 +228,6 @@ export default function CitizenEmergencyView() {
       const mockHosp = nearestHospital || {
         hospitalId: 1,
         hospitalName: 'City Emergency Trauma Center',
-        contactNumber: '02652223344',
         address: 'Station Road, Vadodara',
         latitude: parseFloat(lat) + 0.012,
         longitude: parseFloat(lng) + 0.009
@@ -515,7 +514,7 @@ export default function CitizenEmergencyView() {
                   )}
                 </div>
                 <h4>{nearestHospital.hospitalName}</h4>
-                <p>📍 {nearestHospital.address} • 📞 {nearestHospital.contactNumber}</p>
+                <p>📍 {nearestHospital.address}</p>
                 <small className="nh-route-note">✓ Distress call will route directly to {nearestHospital.hospitalName} ER console</small>
               </div>
             )}
@@ -628,14 +627,8 @@ export default function CitizenEmergencyView() {
                   <div className="info-icon">🚑</div>
                   <div className="info-content">
                     <span className="info-label">ASSIGNED AMBULANCE</span>
-                    <h4>{tracking.ambulance.vehicleNumber || 'GJ-01-EM-1080'}</h4>
-                    <p>{tracking.ambulance.driverName || 'Ramesh Kumar'} (Paramedic)</p>
-                    <a
-                      href={`tel:${tracking.ambulance.driverPhone || '9999999999'}`}
-                      className="call-driver-btn"
-                    >
-                      📞 Call Driver ({tracking.ambulance.driverPhone || '9999999999'})
-                    </a>
+                    <h4>{tracking.ambulance.vehicleNumber || 'Ambulance assigned'}</h4>
+                    <p>{tracking.ambulance.driverName ? `${tracking.ambulance.driverName} (Paramedic)` : 'Paramedic'}</p>
                   </div>
                 </div>
               ) : (
@@ -660,15 +653,6 @@ export default function CitizenEmergencyView() {
                   </span>
                   <h4>{hospToDisplay?.hospitalName || 'Emergency Trauma Center'}</h4>
                   <p>{hospToDisplay?.address || 'Designated Trauma Center'}</p>
-                  {hospToDisplay?.contactNumber && (
-                    <a
-                      href={`tel:${hospToDisplay.contactNumber}`}
-                      className="call-hosp-btn-link"
-                      style={{ display: 'inline-block', marginTop: 4, fontSize: '0.82rem', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
-                    >
-                      📞 Call Hospital ER ({hospToDisplay.contactNumber})
-                    </a>
-                  )}
                 </div>
               </div>
 

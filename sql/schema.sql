@@ -16,6 +16,7 @@ CREATE TABLE Ambulances (
     VehicleNumber NVARCHAR(50),
     DriverName NVARCHAR(200),
     DriverPhone NVARCHAR(50),
+    PasswordHash NVARCHAR(500),
     Type NVARCHAR(50),
     Latitude FLOAT,
     Longitude FLOAT,
@@ -29,6 +30,7 @@ CREATE TABLE Hospitals (
     Latitude FLOAT,
     Longitude FLOAT,
     ContactNumber NVARCHAR(50),
+    PasswordHash NVARCHAR(500),
     Status NVARCHAR(50)
 );
 

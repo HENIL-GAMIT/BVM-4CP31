@@ -118,7 +118,7 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "swagger";
 });
 
-// Seed default admin user before starting the app
+// Apply schema changes and provision the initial administrator from private configuration.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -133,6 +133,7 @@ using (var scope = app.Services.CreateScope())
         catch (Exception ex)
         {
             Console.WriteLine("Database migrate failed: " + ex.Message);
+            throw new InvalidOperationException("Database migration failed; the backend cannot safely start.", ex);
         }
     }
     else
@@ -142,14 +143,40 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        if (!db.Users.Any())
+        var legacyDefaultAdmins = db.Users
+            .Where(user => user.Role == "Admin" && (user.Email == "admin@local" || user.Email == "admin"))
+            .ToList()
+            .Where(user => AuthUtils.VerifyPassword("admin", user.PasswordHash ?? ""))
+            .ToList();
+        if (legacyDefaultAdmins.Count > 0)
         {
-            var admin1 = new User { Name = "Admin", Email = "admin@local", Phone = "0000000000", Role = "Admin", PasswordHash = AuthUtils.HashPassword("admin") };
-            var admin2 = new User { Name = "admin", Email = "admin", Phone = "0000000001", Role = "Admin", PasswordHash = AuthUtils.HashPassword("admin") };
-            db.Users.Add(admin1);
-            db.Users.Add(admin2);
+            db.Users.RemoveRange(legacyDefaultAdmins);
             db.SaveChanges();
-            Console.WriteLine("Seeded default admin users.");
+            Console.WriteLine("Removed legacy default admin accounts.");
+        }
+
+        var bootstrapEmail = builder.Configuration["BootstrapAdmin:Email"]?.Trim();
+        var bootstrapPassword = builder.Configuration["BootstrapAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(bootstrapEmail) != string.IsNullOrWhiteSpace(bootstrapPassword))
+            throw new InvalidOperationException("Configure both BootstrapAdmin:Email and BootstrapAdmin:Password to provision an administrator.");
+        if (!string.IsNullOrWhiteSpace(bootstrapEmail) &&
+            !db.Users.Any(user => user.Role == "Admin"))
+        {
+            if (bootstrapPassword is null || !AuthUtils.IsValidPassword(bootstrapPassword))
+                throw new InvalidOperationException("BootstrapAdmin:Password must contain between 12 and 128 characters.");
+            if (db.Users.Any(user => user.Email == bootstrapEmail))
+                throw new InvalidOperationException("BootstrapAdmin:Email is already assigned to another account.");
+
+            db.Users.Add(new User
+            {
+                Name = builder.Configuration["BootstrapAdmin:Name"] ?? "Administrator",
+                Email = bootstrapEmail.Trim(),
+                Phone = builder.Configuration["BootstrapAdmin:Phone"],
+                Role = "Admin",
+                PasswordHash = AuthUtils.HashPassword(bootstrapPassword)
+            });
+            db.SaveChanges();
+            Console.WriteLine("Provisioned initial administrator from configured bootstrap credentials.");
         }
 
         if (!db.Hospitals.Any())
@@ -185,6 +212,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine("Seeding failed: " + ex.Message);
+        throw;
     }
 }
 
@@ -249,9 +277,18 @@ app.MapPost("/api/emergency/lookup", async (EmergencyLookupRequest req, AppDbCon
 });
 
 // Ambulance endpoints
-app.MapGet("/api/ambulances", async (AppDbContext db) => await db.Ambulances.ToListAsync()).RequireAuthorization();
-app.MapGet("/api/ambulances/{id}", async (int id, AppDbContext db) =>
-    await db.Ambulances.FindAsync(id) is Ambulance a ? Results.Ok(a) : Results.NotFound()).RequireAuthorization();
+app.MapGet("/api/ambulances", async (AppDbContext db) =>
+    await db.Ambulances.ToListAsync()).RequireAuthorization("AdminOnly");
+app.MapGet("/api/ambulances/{id}", async (int id, ClaimsPrincipal user, AppDbContext db) =>
+{
+    var ambulance = await db.Ambulances.FindAsync(id);
+    if (ambulance == null) return Results.NotFound();
+    var role = user.FindFirstValue(ClaimTypes.Role);
+    var canView = role == "Admin" ||
+        (role == "Hospital" && user.FindFirstValue("hospitalId") == ambulance.HospitalId?.ToString()) ||
+        (role == "Driver" && user.FindFirstValue("ambulanceId") == ambulance.AmbulanceId.ToString());
+    return canView ? Results.Ok(ambulance) : Results.Forbid();
+}).RequireAuthorization();
 
 app.MapGet("/api/hospitals/{hospitalId:int}/ambulances", async (int hospitalId, ClaimsPrincipal user, AppDbContext db) =>
 {
@@ -261,13 +298,27 @@ app.MapGet("/api/hospitals/{hospitalId:int}/ambulances", async (int hospitalId, 
     return Results.Ok(await db.Ambulances.Where(a => a.HospitalId == hospitalId).ToListAsync());
 }).RequireAuthorization();
 
-app.MapPost("/api/ambulances", async (Ambulance ambulance, ClaimsPrincipal user, AppDbContext db) =>
+app.MapPost("/api/ambulances", async (AmbulanceCreateRequest request, ClaimsPrincipal user, AppDbContext db) =>
 {
     var role = user.FindFirstValue(ClaimTypes.Role);
-    if (ambulance.HospitalId is null || !await db.Hospitals.AnyAsync(h => h.HospitalId == ambulance.HospitalId))
+    if (!AuthUtils.IsValidPassword(request.Password))
+        return Results.BadRequest("Password must contain between 12 and 128 characters");
+    if (request.HospitalId is null || !await db.Hospitals.AnyAsync(h => h.HospitalId == request.HospitalId))
         return Results.BadRequest("A valid HospitalId is required");
-    if (role != "Admin" && (role != "Hospital" || user.FindFirstValue("hospitalId") != ambulance.HospitalId.ToString()))
+    if (role != "Admin" && (role != "Hospital" || user.FindFirstValue("hospitalId") != request.HospitalId.ToString()))
         return Results.Forbid();
+    var ambulance = new Ambulance
+    {
+        HospitalId = request.HospitalId,
+        VehicleNumber = request.VehicleNumber,
+        DriverName = request.DriverName,
+        DriverPhone = request.DriverPhone,
+        PasswordHash = AuthUtils.HashPassword(request.Password!),
+        Type = request.Type,
+        Latitude = request.Latitude,
+        Longitude = request.Longitude,
+        Status = request.Status
+    };
     db.Ambulances.Add(ambulance);
     await db.SaveChangesAsync();
     return Results.Created($"/api/ambulances/{ambulance.AmbulanceId}", ambulance);
@@ -308,17 +359,102 @@ app.MapDelete("/api/ambulances/{id}", async (int id, ClaimsPrincipal user, AppDb
     return Results.NoContent();
 }).RequireAuthorization();
 
-// Hospitals
-app.MapGet("/api/hospitals", async (AppDbContext db) => await db.Hospitals.ToListAsync());
+// Public hospital directory responses intentionally omit contact details and password hashes.
+app.MapGet("/api/hospitals", async (AppDbContext db) =>
+    Results.Ok(await db.Hospitals.Select(h => new
+    {
+        h.HospitalId,
+        h.HospitalName,
+        h.Address,
+        h.Latitude,
+        h.Longitude,
+        h.Status
+    }).ToListAsync()));
 app.MapGet("/api/hospitals/{id:int}", async (int id, AppDbContext db) =>
-    await db.Hospitals.FindAsync(id) is Hospital hospital ? Results.Ok(hospital) : Results.NotFound());
-app.MapPost("/api/hospitals", async (Hospital h, AppDbContext db) =>
+    await db.Hospitals.Where(h => h.HospitalId == id).Select(h => new
+    {
+        h.HospitalId,
+        h.HospitalName,
+        h.Address,
+        h.Latitude,
+        h.Longitude,
+        h.Status
+    }).FirstOrDefaultAsync() is { } hospital ? Results.Ok(hospital) : Results.NotFound());
+app.MapGet("/api/hospitals/managed", async (AppDbContext db) =>
+    await db.Hospitals.ToListAsync()).RequireAuthorization("AdminOnly");
+app.MapPost("/api/hospitals", async (HospitalCreateRequest request, AppDbContext db) =>
 {
-    if (h.Latitude is < -90 or > 90 || h.Longitude is < -180 or > 180 || (h.Latitude == 0 && h.Longitude == 0))
+    if (!AuthUtils.IsValidPassword(request.Password))
+        return Results.BadRequest("Password must contain between 12 and 128 characters");
+    if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 || (request.Latitude == 0 && request.Longitude == 0))
         return Results.BadRequest("A valid hospital location is required");
+    var h = new Hospital
+    {
+        HospitalName = request.HospitalName,
+        Address = request.Address,
+        Latitude = request.Latitude,
+        Longitude = request.Longitude,
+        ContactNumber = request.ContactNumber,
+        PasswordHash = AuthUtils.HashPassword(request.Password!),
+        Status = request.Status
+    };
     db.Hospitals.Add(h);
     await db.SaveChangesAsync();
     return Results.Created($"/api/hospitals/{h.HospitalId}", h);
+}).RequireAuthorization("AdminOnly");
+
+app.MapPut("/api/hospitals/{id:int}/password", async (int id, PasswordRequest request, AppDbContext db) =>
+{
+    if (!AuthUtils.IsValidPassword(request.Password))
+        return Results.BadRequest("Password must contain between 12 and 128 characters");
+    var hospital = await db.Hospitals.FindAsync(id);
+    if (hospital == null) return Results.NotFound();
+    hospital.PasswordHash = AuthUtils.HashPassword(request.Password!);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization("AdminOnly");
+
+app.MapPut("/api/ambulances/{id:int}/password", async (int id, PasswordRequest request, ClaimsPrincipal user, AppDbContext db) =>
+{
+    if (!AuthUtils.IsValidPassword(request.Password))
+        return Results.BadRequest("Password must contain between 12 and 128 characters");
+    var ambulance = await db.Ambulances.FindAsync(id);
+    if (ambulance == null) return Results.NotFound();
+    var role = user.FindFirstValue(ClaimTypes.Role);
+    if (role != "Admin" &&
+        (role != "Hospital" || user.FindFirstValue("hospitalId") != ambulance.HospitalId?.ToString()))
+        return Results.Forbid();
+    ambulance.PasswordHash = AuthUtils.HashPassword(request.Password!);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization();
+
+app.MapDelete("/api/hospitals/{id:int}", async (int id, ClaimsPrincipal user, AppDbContext db) =>
+{
+    var hospital = await db.Hospitals.FindAsync(id);
+    if (hospital == null) return Results.NotFound();
+
+    if (await db.Dispatches.AnyAsync(d => d.HospitalId == id && d.Status != "Completed"))
+    {
+        return Results.Conflict("Cannot delete hospital with active emergency dispatches");
+    }
+
+    var ambulances = await db.Ambulances.Where(a => a.HospitalId == id).ToListAsync();
+    foreach (var amb in ambulances)
+    {
+        if (!await db.Dispatches.AnyAsync(d => d.AmbulanceId == amb.AmbulanceId && d.Status != "Completed"))
+        {
+            db.Ambulances.Remove(amb);
+        }
+        else
+        {
+            amb.HospitalId = null;
+        }
+    }
+
+    db.Hospitals.Remove(hospital);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
 }).RequireAuthorization("AdminOnly");
 
 // Dispatch
@@ -468,7 +604,19 @@ app.MapGet("/api/ambulances/nearest", async (double lat, double lng, AppDbContex
 {
     var ambulances = await db.Ambulances.Where(a => a.Status == "Available").ToListAsync();
     var nearest = ambulances.OrderBy(a => Distance(lat, lng, a.Latitude, a.Longitude)).FirstOrDefault();
-    return nearest is not null ? Results.Ok(nearest) : Results.NotFound();
+    return nearest is not null
+        ? Results.Ok(new
+        {
+            nearest.AmbulanceId,
+            nearest.HospitalId,
+            nearest.VehicleNumber,
+            nearest.DriverName,
+            nearest.Type,
+            nearest.Latitude,
+            nearest.Longitude,
+            nearest.Status
+        })
+        : Results.NotFound();
 });
 
 // Nearest hospital endpoint
@@ -476,7 +624,17 @@ app.MapGet("/api/hospitals/nearest", async (double lat, double lng, AppDbContext
 {
     var hospitals = await db.Hospitals.ToListAsync();
     var nearest = hospitals.OrderBy(h => Distance(lat, lng, h.Latitude, h.Longitude)).FirstOrDefault();
-    return nearest is not null ? Results.Ok(nearest) : Results.NotFound();
+    return nearest is not null
+        ? Results.Ok(new
+        {
+            nearest.HospitalId,
+            nearest.HospitalName,
+            nearest.Address,
+            nearest.Latitude,
+            nearest.Longitude,
+            nearest.Status
+        })
+        : Results.NotFound();
 });
 
 // Hospitals receive nearby pending requests and accept one to start dispatch.
@@ -678,7 +836,8 @@ app.MapGet("/api/admin/summary", async (AppDbContext db) =>
 // Dev helper: create an admin user (development only)
 app.MapPost("/api/debug/create-admin", async (UserCreateRequest req, AppDbContext db) =>
 {
-    if (string.IsNullOrEmpty(req.Password)) return Results.BadRequest("Password required");
+    if (req.Password is null || !AuthUtils.IsValidPassword(req.Password))
+        return Results.BadRequest("Password must contain between 12 and 128 characters");
     try
     {
         var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email || u.Phone == req.Phone);
@@ -717,14 +876,16 @@ app.MapPost("/api/auth/login", async (LoginRequest login, AppDbContext db) =>
     }
 });
 
-// Driver login by phone + vehicle number
+// Driver login requires an independently provisioned password in addition to identifying details.
 app.MapPost("/api/auth/driver-login", async (DriverLoginRequest req, AppDbContext db) =>
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(req.Phone) || string.IsNullOrWhiteSpace(req.VehicleNumber)) return Results.BadRequest("Phone and VehicleNumber required");
+        if (string.IsNullOrWhiteSpace(req.Phone) || string.IsNullOrWhiteSpace(req.VehicleNumber) || string.IsNullOrEmpty(req.Password))
+            return Results.BadRequest("Phone, VehicleNumber, and password are required");
         var amb = await db.Ambulances.FirstOrDefaultAsync(a => a.DriverPhone == req.Phone && a.VehicleNumber == req.VehicleNumber);
-        if (amb == null) return Results.Unauthorized();
+        if (amb == null || !AuthUtils.VerifyPassword(req.Password, amb.PasswordHash ?? ""))
+            return Results.Unauthorized();
         var claims = new Dictionary<string, string> { { ClaimTypes.Name, amb.DriverName ?? amb.VehicleNumber ?? "Driver" }, { ClaimTypes.Role, "Driver" }, { "ambulanceId", amb.AmbulanceId.ToString() }, { "hospitalId", amb.HospitalId?.ToString() ?? "" } };
         var token = AuthUtils.GenerateJwt(key ?? string.Empty, issuer ?? string.Empty, audience ?? string.Empty, claims, expiresMinutes: 240);
         return Results.Ok(new { token, ambulanceId = amb.AmbulanceId });
@@ -736,14 +897,16 @@ app.MapPost("/api/auth/driver-login", async (DriverLoginRequest req, AppDbContex
     }
 });
 
-// Hospital login by contact number (and optional name)
+// Hospital login requires an independently provisioned password.
 app.MapPost("/api/auth/hospital-login", async (HospitalLoginRequest req, AppDbContext db) =>
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(req.Phone)) return Results.BadRequest("Phone required");
+        if (string.IsNullOrWhiteSpace(req.Phone) || string.IsNullOrEmpty(req.Password))
+            return Results.BadRequest("Phone and password are required");
         var h = await db.Hospitals.FirstOrDefaultAsync(hh => hh.ContactNumber == req.Phone && (string.IsNullOrWhiteSpace(req.HospitalName) || hh.HospitalName == req.HospitalName));
-        if (h == null) return Results.Unauthorized();
+        if (h == null || !AuthUtils.VerifyPassword(req.Password, h.PasswordHash ?? ""))
+            return Results.Unauthorized();
         var claims = new Dictionary<string, string> { { ClaimTypes.Name, h.HospitalName ?? "Hospital" }, { ClaimTypes.Role, "Hospital" }, { "hospitalId", h.HospitalId.ToString() } };
         var token = AuthUtils.GenerateJwt(key ?? string.Empty, issuer ?? string.Empty, audience ?? string.Empty, claims, expiresMinutes: 240);
         return Results.Ok(new { token, hospitalId = h.HospitalId });

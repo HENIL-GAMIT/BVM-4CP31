@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace backend.Models;
 
 public class Hospital
@@ -8,5 +10,7 @@ public class Hospital
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public string? ContactNumber { get; set; }
+    [JsonIgnore]
+    public string? PasswordHash { get; set; }
     public string? Status { get; set; }
 }

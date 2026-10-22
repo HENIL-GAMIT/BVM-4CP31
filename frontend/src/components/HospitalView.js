@@ -5,12 +5,13 @@ import { authHeaders, saveSession } from '../auth';
 export default function HospitalView() {
   const [hospitalId, setHospitalId] = useState(localStorage.getItem('role') === 'Hospital' ? localStorage.getItem('hospitalId') || '' : '');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [hospitalName, setHospitalName] = useState('');
   const [token, setToken] = useState(localStorage.getItem('role') === 'Hospital' ? localStorage.getItem('token') || '' : '');
   const [dispatches, setDispatches] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [ambulances, setAmbulances] = useState([]);
-  const [newAmbulance, setNewAmbulance] = useState({ vehicleNumber: '', driverName: '', driverPhone: '', type: 'Basic', latitude: 0, longitude: 0, status: 'Available' });
+  const [newAmbulance, setNewAmbulance] = useState({ vehicleNumber: '', driverName: '', driverPhone: '', password: '', type: 'Basic', latitude: 0, longitude: 0, status: 'Available' });
   const [selected, setSelected] = useState(null);
   const timer = useRef(null);
   const selectedRef = useRef(null);
@@ -42,7 +43,7 @@ export default function HospitalView() {
       body: JSON.stringify({ ...newAmbulance, hospitalId: Number(hospitalId) })
     });
     if (!response.ok) { alert(await response.text()); return; }
-    setNewAmbulance({ vehicleNumber: '', driverName: '', driverPhone: '', type: 'Basic', latitude: 0, longitude: 0, status: 'Available' });
+    setNewAmbulance({ vehicleNumber: '', driverName: '', driverPhone: '', password: '', type: 'Basic', latitude: 0, longitude: 0, status: 'Available' });
     await load();
   }
 
@@ -82,7 +83,7 @@ export default function HospitalView() {
 
   async function hospitalLogin() {
     try {
-      const res = await fetch('/api/auth/hospital-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, hospitalName }) });
+      const res = await fetch('/api/auth/hospital-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, hospitalName, password }) });
       if (!res.ok) {
         const t = await res.text();
         alert('Login failed: ' + t);
@@ -92,6 +93,7 @@ export default function HospitalView() {
       saveSession({ token: data.token, role: 'Hospital', hospitalId: data.hospitalId });
       setToken(data.token);
       setHospitalId(String(data.hospitalId));
+      setPassword('');
     } catch (e) {
       alert('Network error');
     }
@@ -111,7 +113,8 @@ export default function HospitalView() {
           <div className="role-login-fields">
             <input placeholder="Hospital contact number" value={phone} onChange={(e) => setPhone(e.target.value)} />
             <input placeholder="Hospital name (optional)" value={hospitalName} onChange={(e) => setHospitalName(e.target.value)} />
-            <button className="secondary-btn" onClick={hospitalLogin} type="button">Sign in</button>
+            <input type="password" autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button className="secondary-btn" onClick={hospitalLogin} type="button" disabled={!phone || !password}>Sign in</button>
           </div>
         </div>
       )}
@@ -124,6 +127,7 @@ export default function HospitalView() {
           <input placeholder="Vehicle number" value={newAmbulance.vehicleNumber} onChange={(e) => setNewAmbulance({ ...newAmbulance, vehicleNumber: e.target.value })} required />
           <input placeholder="Driver name" value={newAmbulance.driverName} onChange={(e) => setNewAmbulance({ ...newAmbulance, driverName: e.target.value })} required />
           <input placeholder="Driver phone" value={newAmbulance.driverPhone} onChange={(e) => setNewAmbulance({ ...newAmbulance, driverPhone: e.target.value })} required />
+          <input type="password" autoComplete="new-password" minLength={12} placeholder="Driver password (at least 12 characters)" value={newAmbulance.password} onChange={(e) => setNewAmbulance({ ...newAmbulance, password: e.target.value })} required />
           <button className="secondary-btn" type="submit">Add ambulance and driver</button>
         </form>
         <div className="resource-list">

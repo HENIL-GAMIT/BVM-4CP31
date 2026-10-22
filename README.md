@@ -12,20 +12,29 @@ Phases:
 
 Quick start (development)
 
-Backend (requires .NET 7+ and SQL Server):
+Backend (requires .NET 8; SQL Server is optional for local Development):
 
 ```bash
 cd backend
 dotnet restore
 dotnet build
-# configure connection string in appsettings.Development.json
-dotnet ef migrations add Init
-dotnet ef database update
+# SQL Server migrations are applied on startup. Development falls back to
+# an in-memory database if SQL Server is unavailable.
 dotnet run
 ```
 
 For local runs, set `ASPNETCORE_ENVIRONMENT=Development` first (`$env:ASPNETCORE_ENVIRONMENT='Development'` in PowerShell or `export ASPNETCORE_ENVIRONMENT=Development` in Bash).
 Production runs must configure a private `Jwt:Key` of at least 32 bytes; the development signing-key fallback is disabled outside Development.
+
+There are no default administrator, hospital, or driver passwords. Before the first run, configure the initial administrator in the environment. PowerShell example:
+
+```powershell
+$env:BootstrapAdmin__Email = 'admin@example.com'
+$secure = Read-Host 'Bootstrap admin password' -AsSecureString
+$env:BootstrapAdmin__Password = [System.Net.NetworkCredential]::new('', $secure).Password
+```
+
+The bootstrap password must be 12–128 characters. The first administrator is created only when no administrator exists. The Admin UI requires a password when creating a hospital, and a hospital requires one when adding a driver. Existing hospital and driver records keep their data after migration but have no password until an administrator or owning hospital sets one using the password endpoints in [docs/API.md](docs/API.md).
 
 Frontend (requires Node 18+):
 s
@@ -58,12 +67,12 @@ Every UI also includes a top **Port Navigation Banner** allowing one-click switc
 Run `npm run android` or `npm run ios` from `frontend/` to open the native Expo app. Choose **Patient Emergency Scanner** or **Driver Portal Scanner** to get the role-specific QR scanner, then scan a QR code containing the backend URL (for example, `http://192.168.1.10:5000`) or enter it manually. The existing web UI ports remain unchanged.
 The native driver mission screen can send patient vitals to the assigned hospital ER; the hospital console refreshes the latest report automatically.
 
-### Pre-Configured Demo Credentials
+### Login provisioning
 
 - **Citizen Emergency (:3001)**: No login required (instant access)
-- **Paramedic Driver (:3002)**: Vehicle `GJ-01-EM-1080` / Phone `9999999999` (One-click auto-fill provided)
-- **Hospital ER Staff (:3002)**: Hospital `City Emergency Trauma Center` / Phone `02652223344` (One-click auto-fill provided)
-- **Command Center Admin (:3003)**: Email `admin@local` / Password `admin` (One-click auto-fill provided)
+- **Paramedic Driver (:3002)**: Vehicle, registered phone, and a separately configured password
+- **Hospital ER Staff (:3002)**: Registered phone and a separately configured password
+- **Command Center Admin (:3003)**: The bootstrap administrator credentials configured in the environment
 
 Notes:
 - The `Call 108` button is a `tel:108` link and works offline.

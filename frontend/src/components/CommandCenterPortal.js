@@ -5,8 +5,8 @@ import { authHeaders, saveSession, clearSession, getSession } from '../auth';
 export default function CommandCenterPortal() {
   const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'hospitals' | 'analytics' | 'history'
   const [adminToken, setAdminToken] = useState(() => getSession('Admin')?.token || '');
-  const [adminEmail, setAdminEmail] = useState('admin@local');
-  const [adminPass, setAdminPass] = useState('admin');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPass, setAdminPass] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
 
   // Operational data (Starts empty - only real requests shown)
@@ -18,6 +18,7 @@ export default function CommandCenterPortal() {
   const [newHospName, setNewHospName] = useState('');
   const [newHospAddress, setNewHospAddress] = useState('');
   const [newHospPhone, setNewHospPhone] = useState('');
+  const [newHospPassword, setNewHospPassword] = useState('');
   const [newHospLat, setNewHospLat] = useState('22.3150');
   const [newHospLng, setNewHospLng] = useState('73.1820');
   const [newHospStatus, setNewHospStatus] = useState('Open');
@@ -28,9 +29,14 @@ export default function CommandCenterPortal() {
 
   // Real Admin Login via /api/auth/login
   async function performAdminLogin(customEmail, customPass) {
-    const email = (customEmail || adminEmail || 'admin@local').trim();
-    const password = (customPass || adminPass || 'admin').trim();
+    const email = (customEmail || adminEmail || '').trim();
+    const password = customPass ?? adminPass;
     setLoginMessage('');
+
+    if (!email || !password) {
+      setLoginMessage('Please enter both administrator username/email and password.');
+      return null;
+    }
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -47,6 +53,7 @@ export default function CommandCenterPortal() {
         }
         saveSession({ token: data.token, role: 'Admin' });
         setAdminToken(data.token);
+        setAdminPass('');
         return data.token;
       }
       setLoginMessage((await res.text()) || `Login failed (HTTP ${res.status}). Check your credentials.`);
@@ -59,16 +66,15 @@ export default function CommandCenterPortal() {
 
   // Load backend data if connected
   function loadData() {
-    // Hospitals are public
-    fetch('/api/hospitals')
+    if (!adminToken) return;
+    const headers = authHeaders(adminToken);
+
+    fetch('/api/hospitals/managed', { headers })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) setHospitals(data);
       })
       .catch(() => {});
-
-    if (!adminToken) return;
-    const headers = authHeaders(adminToken);
 
     fetch('/api/emergency', { headers })
       .then((res) => (res.ok ? res.json() : []))
@@ -94,8 +100,12 @@ export default function CommandCenterPortal() {
   // Admin adds new hospital
   async function handleAddHospital(e) {
     e.preventDefault();
-    if (!newHospName || !newHospAddress || !newHospPhone) {
-      alert('Please fill hospital name, address and contact number.');
+    if (!newHospName || !newHospAddress || !newHospPhone || !newHospPassword) {
+      alert('Please fill hospital name, address, contact number, and password.');
+      return;
+    }
+    if (newHospPassword.length < 12) {
+      alert('Hospital password must be at least 12 characters.');
       return;
     }
 
@@ -106,6 +116,7 @@ export default function CommandCenterPortal() {
       hospitalName: newHospName.trim(),
       address: newHospAddress.trim(),
       contactNumber: newHospPhone.trim(),
+      password: newHospPassword,
       latitude: parseFloat(newHospLat) || 22.31,
       longitude: parseFloat(newHospLng) || 73.19,
       status: newHospStatus
@@ -138,7 +149,41 @@ export default function CommandCenterPortal() {
     setNewHospName('');
     setNewHospAddress('');
     setNewHospPhone('');
+    setNewHospPassword('');
     setTimeout(() => setHospSuccessMsg(''), 4000);
+  }
+
+  // Admin deletes hospital from network
+  async function handleDeleteHospital(hospId, hospName) {
+    if (!window.confirm(`Are you sure you want to remove hospital "${hospName}" from the emergency network? This will also unregister its associated ambulances.`)) {
+      return;
+    }
+
+    const token = adminToken;
+    if (!token) {
+      alert('You must be signed in as administrator to delete a hospital.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/hospitals/${hospId}`, {
+        method: 'DELETE',
+        headers: authHeaders(token)
+      });
+
+      if (res.ok) {
+        setHospitals((prev) => prev.filter((h) => h.hospitalId !== hospId));
+        setAmbulances((prev) => prev.filter((a) => a.hospitalId !== hospId));
+        setHospSuccessMsg(`✓ Hospital "${hospName}" successfully removed from emergency network.`);
+        setTimeout(() => setHospSuccessMsg(''), 4000);
+      } else {
+        const detail = await res.text();
+        alert(detail || `Could not delete hospital (HTTP ${res.status}).`);
+      }
+    } catch (err) {
+      console.error('Delete hospital error:', err);
+      alert('Could not reach backend service.');
+    }
   }
 
   // Auto-dispatch nearest
@@ -318,50 +363,52 @@ export default function CommandCenterPortal() {
 
       {/* Main Content */}
       {!adminToken ? (
-        /* Simple Admin Login */
+        /* Secure Private Admin Login */
         <div className="simple-auth-card">
           <div className="auth-circle-badge cmd">🖥️</div>
           <h2>Command Center Login</h2>
-          <p>Dispatcher & Municipal Admin access for city-wide hospital network and emergency fleet oversight.</p>
+          <p>Authorized Dispatcher & Municipal Admin access only. Enter your credentials to manage emergency fleet and hospital network.</p>
 
-          <button
-            type="button"
-            className="simple-quick-login-btn cmd"
-            onClick={() => performAdminLogin('admin@local', 'admin')}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              performAdminLogin(adminEmail, adminPass);
+            }}
+            className="hospital-login-form"
           >
-            ⚡ 1-Click Quick Login (Dispatcher Admin)
-          </button>
+            <div className="simple-form-group">
+              <label>Dispatcher Email / Username</label>
+              <input
+                type="text"
+                className="simple-text-input"
+                placeholder="Enter dispatcher username or email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="or-line"><span>OR ENTER CREDENTIALS</span></div>
+            <div className="simple-form-group">
+              <label>Password</label>
+              <input
+                type="password"
+                className="simple-text-input"
+                placeholder="Enter password"
+                value={adminPass}
+                onChange={(e) => setAdminPass(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="simple-form-group">
-            <label>Dispatcher Email</label>
-            <input
-              type="text"
-              className="simple-text-input"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="simple-form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              className="simple-text-input"
-              value={adminPass}
-              onChange={(e) => setAdminPass(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="button"
-            className="simple-primary-btn"
-            onClick={() => performAdminLogin(adminEmail, adminPass)}
-          >
-            Sign In to Console
-          </button>
-          {loginMessage && <p className="status-message error">{loginMessage}</p>}
+            <button
+              type="submit"
+              className="simple-primary-btn"
+              disabled={!adminEmail || !adminPass}
+            >
+              🔐 Sign In to Command Operations
+            </button>
+            {loginMessage && <p className="status-message error">{loginMessage}</p>}
+          </form>
         </div>
       ) : (
         /* Active Command Center Screens */
@@ -493,6 +540,18 @@ export default function CommandCenterPortal() {
                           required
                         />
                       </div>
+                      <div className="simple-form-group">
+                        <label>Hospital Password (at least 12 characters)</label>
+                        <input
+                          type="password"
+                          className="simple-text-input"
+                          autoComplete="new-password"
+                          minLength={12}
+                          value={newHospPassword}
+                          onChange={(e) => setNewHospPassword(e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
 
                     <div className="simple-form-group">
@@ -564,7 +623,17 @@ export default function CommandCenterPortal() {
                         <div key={hosp.hospitalId} className="hosp-directory-item">
                           <div className="hosp-item-top">
                             <h4>{hosp.hospitalName}</h4>
-                            <span className="hosp-status-pill">{hosp.status || 'Open'}</span>
+                            <div className="hosp-actions-cluster">
+                              <span className="hosp-status-pill">{hosp.status || 'Open'}</span>
+                              <button
+                                type="button"
+                                className="hosp-delete-btn"
+                                onClick={() => handleDeleteHospital(hosp.hospitalId, hosp.hospitalName)}
+                                title="Remove Hospital from Network"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
                           </div>
                           <p className="hosp-address-text">📍 {hosp.address}</p>
                           <div className="hosp-meta-row">

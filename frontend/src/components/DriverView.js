@@ -8,6 +8,7 @@ export default function DriverView() {
   const [selected, setSelected] = useState(null);
   const [phone, setPhone] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
+  const [password, setPassword] = useState('');
   const [token, setToken] = useState(localStorage.getItem('role') === 'Driver' ? localStorage.getItem('token') || '' : '');
   const [sharingLocation, setSharingLocation] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -150,15 +151,15 @@ export default function DriverView() {
   }
 
   async function driverLogin() {
-    if (!phone || !vehicleNumber) {
-      alert('Please enter both driver phone and vehicle number.');
+    if (!phone || !vehicleNumber || !password) {
+      alert('Please enter the driver phone, vehicle number, and password.');
       return;
     }
     try {
       const res = await fetch('/api/auth/driver-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim(), vehicleNumber: vehicleNumber.trim() })
+        body: JSON.stringify({ phone: phone.trim(), vehicleNumber: vehicleNumber.trim(), password })
       });
       if (!res.ok) {
         const text = await res.text();
@@ -169,6 +170,7 @@ export default function DriverView() {
       saveSession({ token: data.token, role: 'Driver', ambulanceId: data.ambulanceId });
       setToken(data.token);
       setAmbulanceId(String(data.ambulanceId));
+      setPassword('');
     } catch (e) {
       alert('Network error during login');
     }
@@ -215,7 +217,7 @@ export default function DriverView() {
               <input
                 id="driver-phone"
                 type="tel"
-                placeholder="e.g. 9999999999"
+                placeholder="Enter registered driver phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
@@ -233,8 +235,18 @@ export default function DriverView() {
                 autoCapitalize="characters"
               />
             </div>
+            <div className="driver-field-group">
+              <label htmlFor="driver-password">Password</label>
+              <input
+                id="driver-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-            <button className="driver-big-btn primary" onClick={driverLogin} type="button">
+            <button className="driver-big-btn primary" onClick={driverLogin} type="button" disabled={!phone || !vehicleNumber || !password}>
               Sign In to Ambulance
             </button>
           </div>

@@ -8,6 +8,9 @@ namespace backend.Services;
 
 public static class AuthUtils
 {
+    public static bool IsValidPassword(string? password) =>
+        !string.IsNullOrWhiteSpace(password) && password.Length is >= 12 and <= 128;
+
     public static string HashPassword(string password)
     {
         byte[] salt = RandomNumberGenerator.GetBytes(16);

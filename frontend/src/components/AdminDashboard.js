@@ -10,6 +10,7 @@ export default function AdminDashboard() {
     vehicleNumber: '',
     driverName: '',
     driverPhone: '',
+    password: '',
     type: 'Basic',
     latitude: 0,
     longitude: 0,
@@ -21,6 +22,7 @@ export default function AdminDashboard() {
     latitude: 0,
     longitude: 0,
     contactNumber: '',
+    password: '',
     status: 'Open'
   });
 
@@ -31,7 +33,7 @@ export default function AdminDashboard() {
     const a = await fetch('/api/ambulances', { headers: authHeaders() });
     setAmbulances(await a.json());
 
-    const h = await fetch('/api/hospitals');
+    const h = await fetch('/api/hospitals/managed', { headers: authHeaders() });
     setHospitals(await h.json());
   }
 
@@ -45,17 +47,22 @@ export default function AdminDashboard() {
     const headers = {'Content-Type': 'application/json'};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    await fetch('/api/ambulances', {
+    const response = await fetch('/api/ambulances', {
       method: 'POST',
       headers,
       body: JSON.stringify({...newAmb, hospitalId: Number(newAmb.hospitalId)})
     });
+    if (!response.ok) {
+      alert(await response.text());
+      return;
+    }
 
     setNewAmb({
       hospitalId: '',
       vehicleNumber: '',
       driverName: '',
       driverPhone: '',
+      password: '',
       type: 'Basic',
       latitude: 0,
       longitude: 0,
@@ -70,11 +77,15 @@ export default function AdminDashboard() {
     const headers = {'Content-Type': 'application/json'};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    await fetch('/api/hospitals', {
+    const response = await fetch('/api/hospitals', {
       method: 'POST',
       headers,
       body: JSON.stringify(newHosp)
     });
+    if (!response.ok) {
+      alert(await response.text());
+      return;
+    }
 
     setNewHosp({
       hospitalName: '',
@@ -82,6 +93,7 @@ export default function AdminDashboard() {
       latitude: 0,
       longitude: 0,
       contactNumber: '',
+      password: '',
       status: 'Open'
     });
     load();
@@ -152,6 +164,7 @@ export default function AdminDashboard() {
             <input placeholder="Vehicle" value={newAmb.vehicleNumber} onChange={(e) => setNewAmb({ ...newAmb, vehicleNumber: e.target.value })} />
             <input placeholder="Driver" value={newAmb.driverName} onChange={(e) => setNewAmb({ ...newAmb, driverName: e.target.value })} />
             <input placeholder="Phone" value={newAmb.driverPhone} onChange={(e) => setNewAmb({ ...newAmb, driverPhone: e.target.value })} />
+            <input type="password" autoComplete="new-password" minLength={12} placeholder="Driver password (at least 12 characters)" value={newAmb.password} onChange={(e) => setNewAmb({ ...newAmb, password: e.target.value })} required />
             <button className="secondary-btn" type="submit">Add Ambulance</button>
           </form>
         </div>
@@ -171,6 +184,7 @@ export default function AdminDashboard() {
             <input placeholder="Name" value={newHosp.hospitalName} onChange={(e) => setNewHosp({ ...newHosp, hospitalName: e.target.value })} />
             <input placeholder="Address" value={newHosp.address} onChange={(e) => setNewHosp({ ...newHosp, address: e.target.value })} />
             <input placeholder="Contact" value={newHosp.contactNumber} onChange={(e) => setNewHosp({ ...newHosp, contactNumber: e.target.value })} />
+            <input type="password" autoComplete="new-password" minLength={12} placeholder="Hospital password (at least 12 characters)" value={newHosp.password} onChange={(e) => setNewHosp({ ...newHosp, password: e.target.value })} required />
             <input type="number" step="any" placeholder="Latitude" value={newHosp.latitude} onChange={(e) => setNewHosp({ ...newHosp, latitude: parseFloat(e.target.value) || 0 })} required />
             <input type="number" step="any" placeholder="Longitude" value={newHosp.longitude} onChange={(e) => setNewHosp({ ...newHosp, longitude: parseFloat(e.target.value) || 0 })} required />
             <button className="secondary-btn" type="submit">Add Hospital</button>

@@ -45,6 +45,9 @@ namespace SmartDispatch.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("float");
 
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .HasColumnType("nvarchar(max)");
 
@@ -185,6 +188,9 @@ namespace SmartDispatch.Migrations
 
                     b.Property<double>("Longitude")
                         .HasColumnType("float");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .HasColumnType("nvarchar(max)");

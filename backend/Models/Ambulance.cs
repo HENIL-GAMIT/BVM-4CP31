@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace backend.Models;
 
 public class Ambulance
@@ -7,6 +9,8 @@ public class Ambulance
     public string? VehicleNumber { get; set; }
     public string? DriverName { get; set; }
     public string? DriverPhone { get; set; }
+    [JsonIgnore]
+    public string? PasswordHash { get; set; }
     public string? Type { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
