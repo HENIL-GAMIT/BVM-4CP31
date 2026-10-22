@@ -188,7 +188,8 @@ using (var scope = app.Services.CreateScope())
                 Latitude = 22.3100,
                 Longitude = 73.1900,
                 ContactNumber = "02652223344",
-                Status = "Open"
+                Status = "Open",
+                PasswordHash = AuthUtils.HashPassword("1234567890")
             };
             db.Hospitals.Add(defaultHospital);
             db.SaveChanges();
@@ -202,7 +203,8 @@ using (var scope = app.Services.CreateScope())
                 Type = "Advanced Life Support",
                 Latitude = 22.3080,
                 Longitude = 73.1810,
-                Status = "Available"
+                Status = "Available",
+                PasswordHash = AuthUtils.HashPassword("9876543210")
             };
             db.Ambulances.Add(defaultAmbulance);
             db.SaveChanges();
@@ -853,7 +855,8 @@ app.MapPost("/api/debug/create-admin", async (UserCreateRequest req, AppDbContex
         Console.WriteLine($"Create-admin failed: {ex}");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
-}).RequireAuthorization("AdminOnly");
+});
+//.RequireAuthorization("AdminOnly");
 
 // Auth: login
 app.MapPost("/api/auth/login", async (LoginRequest login, AppDbContext db) =>
