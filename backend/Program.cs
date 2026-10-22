@@ -884,11 +884,27 @@ app.MapPost("/api/auth/driver-login", async (DriverLoginRequest req, AppDbContex
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(req.Phone) || string.IsNullOrWhiteSpace(req.VehicleNumber) || string.IsNullOrEmpty(req.Password))
-            return Results.BadRequest("Phone, VehicleNumber, and password are required");
-        var amb = await db.Ambulances.FirstOrDefaultAsync(a => a.DriverPhone == req.Phone && a.VehicleNumber == req.VehicleNumber);
-        if (amb == null || !AuthUtils.VerifyPassword(req.Password, amb.PasswordHash ?? ""))
+        if (string.IsNullOrWhiteSpace(req.Phone) || string.IsNullOrEmpty(req.Password))
+            return Results.BadRequest("Phone and password are required");
+        var ambulances = await db.Ambulances
+            .Where(a => a.DriverPhone == req.Phone.Trim())
+            .ToListAsync();
+        if (!string.IsNullOrWhiteSpace(req.VehicleNumber))
+        {
+            ambulances = ambulances
+                .Where(a => a.VehicleNumber == req.VehicleNumber.Trim())
+                .ToList();
+        }
+        else if (ambulances.Count != 1)
+        {
             return Results.Unauthorized();
+        }
+        var matchingAmbulances = ambulances
+            .Where(a => AuthUtils.VerifyPassword(req.Password, a.PasswordHash ?? ""))
+            .Take(2)
+            .ToList();
+        var amb = matchingAmbulances.Count == 1 ? matchingAmbulances[0] : null;
+        if (amb == null) return Results.Unauthorized();
         var claims = new Dictionary<string, string> { { ClaimTypes.Name, amb.DriverName ?? amb.VehicleNumber ?? "Driver" }, { ClaimTypes.Role, "Driver" }, { "ambulanceId", amb.AmbulanceId.ToString() }, { "hospitalId", amb.HospitalId?.ToString() ?? "" } };
         var token = AuthUtils.GenerateJwt(key ?? string.Empty, issuer ?? string.Empty, audience ?? string.Empty, claims, expiresMinutes: 240);
         return Results.Ok(new { token, ambulanceId = amb.AmbulanceId });

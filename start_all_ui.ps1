@@ -1,8 +1,8 @@
-# Smart Dispatch - Multi-Port UI Launcher
-# Starts 4 independent operational interfaces on dedicated ports
+# Smart Dispatch - Single-Port UI Launcher
+# Starts one unified UI for emergency requests and authenticated role dashboards
 
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "   SMART DISPATCH 108 - MULTI-PORT DISTRIBUTED UI LAUNCHER      " -ForegroundColor Green
+Write-Host "       SMART DISPATCH 108 - SINGLE-PORT UI LAUNCHER             " -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 
 $frontendDir = Join-Path $PSScriptRoot "frontend"
@@ -43,12 +43,9 @@ if (!(Test-Path $distDir)) {
     Pop-Location
 }
 
-Write-Host "`nStarting Multi-Port HTTP Server Mesh..." -ForegroundColor Green
-Write-Host "  🚨 Port 3001 : Citizen Emergency SOS & Tracking  -> http://localhost:3001" -ForegroundColor Red
-Write-Host "  🚑 Port 3002 : Hospital ER & Paramedic Driver   -> http://localhost:3002" -ForegroundColor Yellow
-Write-Host "  🖥️ Port 3003 : Command Center, Analytics, Logs  -> http://localhost:3003" -ForegroundColor Blue
-Write-Host "  🌐 Port 3000 : Master Mission Control Launcher  -> http://localhost:3000" -ForegroundColor Green
-Write-Host "  🔌 Port 5000 : .NET Backend API (Proxy Target)  -> http://localhost:5000" -ForegroundColor Gray
+Write-Host "`nStarting unified UI..." -ForegroundColor Green
+Write-Host "  🌐 Smart Dispatch UI : http://localhost:3000" -ForegroundColor Green
+Write-Host "  🔌 API backend       : http://localhost:5000" -ForegroundColor Gray
 Write-Host "`nPress Ctrl+C at any time to stop all servers.`n" -ForegroundColor DarkGray
 
 Push-Location $frontendDir

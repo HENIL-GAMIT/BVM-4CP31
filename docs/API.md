@@ -8,7 +8,7 @@ Endpoints
   - Body: `{ "email": "admin@example.com", "password": "..." }`
   - The initial administrator is provisioned using `BootstrapAdmin:Email` and `BootstrapAdmin:Password`; there is no default admin password.
 - POST `/api/auth/driver-login`
-  - Body: `{ "phone": "...", "vehicleNumber": "...", "password": "..." }`
+  - Body: `{ "phone": "...", "password": "..." }`; `vehicleNumber` is optional when the phone number identifies exactly one ambulance.
 - POST `/api/auth/hospital-login`
   - Body: `{ "phone": "...", "hospitalName": "...", "password": "..." }`
 - Passwords must be 12–128 characters and are stored as salted password hashes.

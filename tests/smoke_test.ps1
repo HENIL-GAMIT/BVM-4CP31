@@ -76,6 +76,11 @@ Write-Host "Dispatch created:" $disp.dispatchId
 Write-Host "Sending patient vitals from the assigned driver..."
 $driverLoginBody = @{ Phone='9999990001'; VehicleNumber='GJ-01-TST-9999'; Password=$driverPassword } | ConvertTo-Json
 $driverLogin = Invoke-RestMethod -Uri "$base/api/auth/driver-login" -Method Post -Body $driverLoginBody -Headers $headers
+$driverLoginByPhoneBody = @{ Phone='9999990001'; Password=$driverPassword } | ConvertTo-Json
+$driverLoginByPhone = Invoke-RestMethod -Uri "$base/api/auth/driver-login" -Method Post -Body $driverLoginByPhoneBody -Headers $headers
+if ($driverLoginByPhone.ambulanceId -ne $amb.ambulanceId) {
+    throw "Driver login without a vehicle number did not identify the driver's ambulance."
+}
 $wrongDriverLoginBody = @{ Phone='9999990001'; VehicleNumber='GJ-01-TST-9999' } | ConvertTo-Json
 try {
     Invoke-RestMethod -Uri "$base/api/auth/driver-login" -Method Post -Body $wrongDriverLoginBody -Headers $headers

@@ -1,10 +1,6 @@
 /**
- * Smart Dispatch - Multi-Port Micro-Frontend Server
- * Serves dedicated operational interfaces on distinct localhost ports:
- *  - Port 3000: Master Mission Control Hub & Launcher
- *  - Port 3001: Citizen Emergency SOS & Live Tracking
- *  - Port 3002: Hospital ER Trauma & Paramedic Driver MDT
- *  - Port 3003: Central Command Center, Analytics & Mission History
+ * Smart Dispatch single-port UI server
+ * Serves the citizen landing page and role-based dashboards on port 3000.
  * Automatically proxies all /api/* requests to backend at http://localhost:5000
  */
 
@@ -38,27 +34,8 @@ const MIME_TYPES = {
 const PORT_CONFIGS = [
   {
     port: 3000,
-    role: 'hub',
-    label: 'Master Mission Control Hub',
-    icon: '🌐'
-  },
-  {
-    port: 3001,
     role: 'emergency',
-    label: 'Citizen Emergency SOS Portal',
-    icon: '🚨'
-  },
-  {
-    port: 3002,
-    role: 'hospital-driver',
-    label: 'Hospital ER & Paramedic Driver Portal',
-    icon: '🚑'
-  },
-  {
-    port: 3003,
-    role: 'command',
-    label: 'Central Command Center & Analytics',
-    icon: '🖥️'
+    label: 'Smart Dispatch 108'
   }
 ];
 
@@ -189,19 +166,17 @@ function createServerForPort(config) {
   return server;
 }
 
-// Start all 4 servers
+// Start the single UI server.
 console.log('\n================================================================');
-console.log('       SMART DISPATCH 108 - DISTRIBUTED MULTI-PORT MESH        ');
+console.log('              SMART DISPATCH 108 - SINGLE UI                  ');
 console.log('================================================================');
 console.log(`Web Assets Directory: ${STATIC_DIR}`);
 console.log(`Backend Reverse Proxy: ${BACKEND_URL}\n`);
 
 PORT_CONFIGS.forEach((cfg) => {
   createServerForPort(cfg);
-  console.log(`  ${cfg.icon} Port ${cfg.port} -> http://localhost:${cfg.port}  [${cfg.label}]`);
+  console.log(`  Port ${cfg.port} -> http://localhost:${cfg.port}  [${cfg.label}]`);
 });
 
 console.log('================================================================');
-console.log('All 4 user interfaces are running simultaneously.');
-console.log('Open any of the URLs above in your browser to inspect each UI.\n');
-
+console.log('Emergency requests and role-based dashboards share this UI port.\n');

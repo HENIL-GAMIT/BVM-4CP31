@@ -6056,6 +6056,17 @@ button, input, select {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
+.unified-login-card {
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.unified-login-intro {
+  margin: 0 0 12px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
 .modal-top {
   display: flex;
   justify-content: space-between;
@@ -6942,5 +6953,4 @@ button, input, select {
   color: #ffffff;
   border-color: #dc2626;
 }
-
 

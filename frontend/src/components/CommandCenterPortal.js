@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import MapView from './MapView';
 import { authHeaders, saveSession, clearSession, getSession } from '../auth';
 
-export default function CommandCenterPortal() {
+export default function CommandCenterPortal({ onSignOut }) {
   const [activeTab, setActiveTab] = useState('dispatch'); // 'dispatch' | 'hospitals' | 'analytics' | 'history'
   const [adminToken, setAdminToken] = useState(() => getSession('Admin')?.token || '');
   const [adminEmail, setAdminEmail] = useState('');
@@ -311,7 +311,7 @@ export default function CommandCenterPortal() {
           <div className="blue-cross-mark">🖥️</div>
           <div>
             <h1>Command Operations Center</h1>
-            <p>Port 3003 • City Fleet Coordination & Hospital Management</p>
+            <p>Smart Dispatch • City Fleet Coordination & Hospital Management</p>
           </div>
         </div>
 
@@ -353,6 +353,7 @@ export default function CommandCenterPortal() {
               onClick={() => {
                 clearSession();
                 setAdminToken('');
+                onSignOut?.();
               }}
             >
               Sign Out

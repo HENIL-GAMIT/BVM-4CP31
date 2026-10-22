@@ -38,7 +38,7 @@ const quickLocations = [
   { label: 'Anand - Amul Dairy Area', address: 'Amul Dairy Road, Anand', lat: 22.5560, lng: 72.9510 }
 ];
 
-export default function CitizenEmergencyView() {
+export default function CitizenEmergencyView({ onLogin }) {
   const [lat, setLat] = useState('22.3072');
   const [lng, setLng] = useState('73.1812');
   const [address, setAddress] = useState('');
@@ -437,6 +437,9 @@ export default function CitizenEmergencyView() {
           <a href="tel:108" className="simple-call-108-btn">
             <span>📞 Call 108</span>
           </a>
+          <button className="simple-ghost-btn" type="button" onClick={onLogin}>
+            🔐 Login
+          </button>
         </div>
       </header>
 

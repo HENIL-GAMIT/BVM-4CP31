@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import MapView from './MapView';
 import { authHeaders, saveSession, clearSession, getSession } from '../auth';
 
-export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
+export default function HospitalDriverPortal({ initialSubTab = 'hospital', onSignOut }) {
   const [subTab, setSubTab] = useState(initialSubTab); // 'driver' | 'hospital'
 
   // Driver state
@@ -70,19 +70,6 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       .catch(() => {});
   }, []);
 
-  // Tab switching: immediately close session when shifting between hospital and ambulance
-  function handleSubTabShift(targetTab) {
-    if (targetTab === subTab) return;
-    clearSession();
-    setHospitalToken('');
-    setDriverToken('');
-    setSelectedDispatch(null);
-    setActiveIncomingEmergency(null);
-    setHospitalFleet([]);
-    setPendingEmergencies([]);
-    setSubTab(targetTab);
-  }
-
   // Complete sign out for hospital
   function handleHospitalSignOut() {
     clearSession();
@@ -90,6 +77,13 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
     setHospitalFleet([]);
     setPendingEmergencies([]);
     setActiveIncomingEmergency(null);
+    onSignOut?.();
+  }
+
+  function handleDriverSignOut() {
+    clearSession();
+    setDriverToken('');
+    onSignOut?.();
   }
 
   // Audio alert chime for new emergency
@@ -492,8 +486,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       if (!res.ok) {
         const detail = await res.text();
         if (res.status === 401 || res.status === 403) {
-          clearSession();
-          setDriverToken('');
+          handleDriverSignOut();
         }
         setVitalsMessage(detail || `Mission update failed (HTTP ${res.status}).`);
         return;
@@ -545,8 +538,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
       if (!res.ok) {
         const detail = await res.text();
         if (res.status === 401 || res.status === 403) {
-          clearSession();
-          setDriverToken('');
+          handleDriverSignOut();
         }
         setVitalsMessage(detail || `Vitals were not sent (HTTP ${res.status}).`);
         return;
@@ -564,32 +556,14 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
 
   return (
     <div className="simple-page-container">
-      {/* Clean Header with Simple Toggle */}
+      {/* Role dashboard header */}
       <header className="clean-app-header">
         <div className="header-brand-box">
           <div className="yellow-cross-mark">🏥</div>
           <div>
-            <h1>Hospital & Ambulance Fleet Portal</h1>
-            <p>Port 3002 • Emergency Dispatch & Fleet Management</p>
+            <h1>{subTab === 'hospital' ? 'Hospital ER & Fleet Dashboard' : 'Ambulance Driver Dashboard'}</h1>
+            <p>Smart Dispatch • Emergency Operations</p>
           </div>
-        </div>
-
-        {/* Clean Sub-tab Toggle */}
-        <div className="simple-role-toggle">
-          <button
-            type="button"
-            className={`role-toggle-btn ${subTab === 'hospital' ? 'active' : ''}`}
-            onClick={() => handleSubTabShift('hospital')}
-          >
-            🏥 Hospital ER & Fleet
-          </button>
-          <button
-            type="button"
-            className={`role-toggle-btn ${subTab === 'driver' ? 'active' : ''}`}
-            onClick={() => handleSubTabShift('driver')}
-          >
-            🚑 Ambulance Driver
-          </button>
         </div>
       </header>
 
@@ -706,7 +680,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                   className="text-signout-btn"
                   onClick={handleHospitalSignOut}
                 >
-                  ⇄ Switch Hospital / Sign Out
+                  Sign Out
                 </button>
               </div>
 
@@ -1142,10 +1116,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                         <button
                           type="button"
                           className="text-signout-btn"
-                          onClick={() => {
-                            clearSession();
-                            setDriverToken('');
-                          }}
+                          onClick={handleDriverSignOut}
                         >
                           Sign Out
                         </button>
@@ -1241,10 +1212,7 @@ export default function HospitalDriverPortal({ initialSubTab = 'hospital' }) {
                       <button
                         type="button"
                         className="text-signout-btn"
-                        onClick={() => {
-                          clearSession();
-                          setDriverToken('');
-                        }}
+                        onClick={handleDriverSignOut}
                       >
                         Sign Out
                       </button>
