@@ -5,8 +5,9 @@ import CommandCenterPortal from './components/CommandCenterPortal';
 import { clearSession, getSession, saveSession } from './auth';
 import './styles.css';
 
-const expoWebApiUrl = typeof window !== 'undefined' && window.location.port === '8081'
-  ? `${window.location.protocol}//${window.location.hostname}:5000`
+const webLocation = typeof window !== 'undefined' ? window.location : undefined;
+const expoWebApiUrl = webLocation?.port === '8081'
+  ? `${webLocation.protocol}//${webLocation.hostname}:5000`
   : '';
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || expoWebApiUrl).replace(/\/$/, '');
 
