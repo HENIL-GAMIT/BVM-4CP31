@@ -44,9 +44,8 @@ Run the unified frontend on one UI port:
 # From project root (PowerShell)
 .\start_all_ui.ps1
 
-# Or from frontend directory
+# Browser UI only, from frontend directory
 cd frontend
-npm run build
 npm run start:web
 ```
 
@@ -54,9 +53,9 @@ The unified frontend is available at [http://localhost:3000](http://localhost:30
 
 ### Native Expo apps
 
-To view the native app on an Android phone, start the backend in one terminal, then run `npm start` from `frontend/`. Expo starts in LAN mode and displays a QR code. Scan that code with **Expo Go** on a phone connected to the same Wi-Fi as the computer. The app starts on the emergency request screen; use **Sign in** in the top-right corner to open the shared login for Admin, Hospital, and Driver accounts. Sign in with the registered email or phone and password to open the matching native dashboard. The dashboards support emergency dispatch/acceptance, ambulance fleet management, driver mission status, live GPS sharing, and patient vitals.
+To view the same UI and CSS as the PC on an Android phone, start the backend first, then run `npm start` from `frontend/`. This builds the shared web UI, starts its LAN server and opens Expo in LAN mode. Scan the Expo QR code using **Expo Go** on a phone connected to the same Wi-Fi as the computer. Expo Go displays the PC web UI inside the app, including the same citizen page, sign-in and role dashboards.
 
-The app uses `EXPO_PUBLIC_API_URL` when configured; otherwise it uses the Expo host address on port 5000. The Android phone must be able to reach the backend over the network. Use the app's **Config** option only if you need to scan or enter a backend URL manually; that is separate from the Expo Go QR code.
+Keep the Expo terminal running while using the app. The phone needs network access to the computer on ports 8081 (Expo), 3000 (shared UI), and 5000 (backend). Set `EXPO_PUBLIC_WEB_APP_URL` if the shared UI uses a different address. `EXPO_PUBLIC_API_URL` can override the API URL; otherwise API requests from the shared UI go through the UI server's backend proxy.
 
 ### Login provisioning
 

@@ -5,7 +5,10 @@ import CommandCenterPortal from './components/CommandCenterPortal';
 import { clearSession, getSession, saveSession } from './auth';
 import './styles.css';
 
-const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+const expoWebApiUrl = typeof window !== 'undefined' && window.location.port === '8081'
+  ? `${window.location.protocol}//${window.location.hostname}:5000`
+  : '';
+const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || expoWebApiUrl).replace(/\/$/, '');
 
 if (typeof window !== 'undefined' && !window.__smartDispatchApiConfigured) {
   const browserFetch = window.fetch.bind(window);
