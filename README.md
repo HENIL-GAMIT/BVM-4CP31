@@ -47,16 +47,16 @@ Run the unified frontend on one UI port:
 # Or from frontend directory
 cd frontend
 npm run build
-npm start
+npm run start:web
 ```
 
 The unified frontend is available at [http://localhost:3000](http://localhost:3000). It opens on the citizen emergency page without login. The top-right Login button accepts Admin, Hospital, or Ambulance Driver credentials and opens the matching role dashboard. Frontend API requests are proxied to the backend at `http://localhost:5000`.
 
 ### Native Expo apps
 
-Run `npm run android` or `npm run ios` from `frontend/` to open the native Expo app. It starts on the emergency request screen; use **Sign in** in the top-right corner to open the shared login for Admin, Hospital, and Driver accounts. Sign in with the registered email or phone and password to open the matching native dashboard. The dashboards support emergency dispatch/acceptance, ambulance fleet management, driver mission status, live GPS sharing, and patient vitals.
+To view the native app on an Android phone, start the backend in one terminal, then run `npm start` from `frontend/`. Expo starts in LAN mode and displays a QR code. Scan that code with **Expo Go** on a phone connected to the same Wi-Fi as the computer. The app starts on the emergency request screen; use **Sign in** in the top-right corner to open the shared login for Admin, Hospital, and Driver accounts. Sign in with the registered email or phone and password to open the matching native dashboard. The dashboards support emergency dispatch/acceptance, ambulance fleet management, driver mission status, live GPS sharing, and patient vitals.
 
-The app uses `EXPO_PUBLIC_API_URL` when configured; otherwise it uses the Expo host address on port 5000. Use **Config** to scan a backend QR code or enter the backend URL manually (for example, `http://192.168.1.10:5000`). The Android device and backend must be able to reach each other over the network.
+The app uses `EXPO_PUBLIC_API_URL` when configured; otherwise it uses the Expo host address on port 5000. The Android phone must be able to reach the backend over the network. Use the app's **Config** option only if you need to scan or enter a backend URL manually; that is separate from the Expo Go QR code.
 
 ### Login provisioning
 

@@ -35,7 +35,7 @@ if (!$backendRunning) {
 }
 
 # 2. Check if dist exists, if not build it
-$distDir = Join-Path $frontendDir "dist"
+$distDir = Join-Path $frontendDir "dist-web"
 if (!(Test-Path $distDir)) {
     Write-Host "Building web bundle for first-time launch..." -ForegroundColor Yellow
     Push-Location $frontendDir

@@ -13,7 +13,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const parsedBackend = new url.URL(BACKEND_URL);
 
 // Locate the current Expo web export.
-const DIST_DIR = path.resolve(__dirname, 'dist');
+const DIST_DIR = path.resolve(__dirname, 'dist-web');
 const STATIC_DIR = DIST_DIR;
 
 const MIME_TYPES = {
