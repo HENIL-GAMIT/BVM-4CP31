@@ -36,6 +36,8 @@ function MobileDesktopApp() {
           source={{ uri: getDesktopUiUrl() }}
           style={styles.webView}
           originWhitelist={['http://*', 'https://*']}
+          scrollEnabled
+          nestedScrollEnabled
           javaScriptEnabled
           domStorageEnabled
           geolocationEnabled

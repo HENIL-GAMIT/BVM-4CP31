@@ -28,6 +28,17 @@ html, body, #root {
   color: var(--primary);
 }
 
+body {
+  min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  height: auto;
+  min-height: 100vh;
+}
+
 button, input, select {
   font: inherit;
 }
@@ -6953,4 +6964,3 @@ button, input, select {
   color: #ffffff;
   border-color: #dc2626;
 }
-
