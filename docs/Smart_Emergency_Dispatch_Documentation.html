@@ -494,7 +494,7 @@
       <span class="module-tag">Public / No Login</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/Emergency.js</code>, <code>frontend/App.js</code> (Native Mobile), <code>backend/Program.cs</code> (<code>/api/emergency</code>).
+      <strong>Component Files:</strong> <code>frontend/src/components/CitizenEmergencyView.js</code>, <code>frontend/App.js</code> (Expo entry), <code>backend/Program.cs</code> (<code>/api/emergency</code>).
     </p>
     <p>
       <strong>Purpose & Philosophy:</strong> When a medical catastrophe occurs, users cannot be hindered by registration screens, password prompts, or email verifications. This module provides a friction-free, instantaneous gateway to emergency dispatch.
@@ -527,7 +527,7 @@
       <span class="module-tag">Role: Hospital</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/HospitalView.js</code>, <code>backend/Program.cs</code> (<code>/api/hospitals</code>, <code>/api/emergency/available-for-hospital/{id}</code>, <code>/api/emergency/{id}/accept</code>).
+      <strong>Component Files:</strong> <code>frontend/src/components/HospitalDriverPortal.js</code>, <code>backend/Program.cs</code> (<code>/api/hospitals</code>, <code>/api/emergency/available-for-hospital/{id}</code>, <code>/api/emergency/{id}/accept</code>).
     </p>
     <p>
       <strong>Purpose & Philosophy:</strong> Empowers hospital staff to monitor incoming distress calls within their geographic catchment area and dispatch their private or affiliated ambulance fleet.
@@ -559,7 +559,7 @@
       <span class="module-tag">Role: Driver</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/DriverView.js</code>, <code>backend/Program.cs</code> (<code>/api/auth/driver-login</code>, <code>/api/ambulances/{id}/location</code>, <code>/api/dispatch/{id}</code>).
+      <strong>Component Files:</strong> <code>frontend/src/components/HospitalDriverPortal.js</code>, <code>backend/Program.cs</code> (<code>/api/auth/driver-login</code>, <code>/api/ambulances/{id}/location</code>, <code>/api/dispatch/{id}</code>).
     </p>
     <p>
       <strong>Purpose & Philosophy:</strong> Designed specifically for in-vehicle mounted tablets or driver mobile phones. Provides clear, high-contrast operational status and automated real-time GPS telemetry broadcasting.
@@ -591,7 +591,7 @@
       <span class="module-tag">Role: Admin</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/AdminDashboard.js</code>, <code>frontend/src/components/AdminLogin.js</code>, <code>backend/Program.cs</code>.
+      <strong>Component Files:</strong> <code>frontend/src/components/CommandCenterPortal.js</code>, <code>backend/Program.cs</code>.
     </p>
     <p>
       <strong>Purpose:</strong> Complete administrative oversight of the entire city or state emergency response infrastructure.
@@ -614,7 +614,7 @@
       <span class="module-tag">Operational Audit</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/HistoryView.js</code>, <code>backend/Program.cs</code> (<code>/api/emergency</code>, <code>/api/dispatch</code>, <code>/api/calls</code>).
+      <strong>Component Files:</strong> <code>frontend/src/components/CommandCenterPortal.js</code>, <code>backend/Program.cs</code> (<code>/api/emergency</code>, <code>/api/dispatch</code>, <code>/api/calls</code>).
     </p>
     <div class="card">
       <h3>Key Audit Features:</h3>
@@ -642,7 +642,7 @@
       <span class="module-tag">Executive Intelligence</span>
     </div>
     <p>
-      <strong>Component Files:</strong> <code>frontend/src/components/ReportsView.js</code>, <code>backend/Program.cs</code> (<code>/api/admin/summary</code>).
+      <strong>Component Files:</strong> <code>frontend/src/components/CommandCenterPortal.js</code>, <code>backend/Program.cs</code> (<code>/api/admin/summary</code>).
     </p>
     <div class="grid-2">
       <div class="card">
