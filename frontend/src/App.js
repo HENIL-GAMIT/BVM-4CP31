@@ -134,7 +134,7 @@ export default function DesktopApp() {
               <h3 id="unified-login-title">Sign in to Smart Dispatch</h3>
               <button type="button" aria-label="Close login" onClick={() => setShowLogin(false)}>×</button>
             </div>
-            <p className="unified-login-intro">Sign in with your registered email or phone number and password. Your dashboard opens automatically.</p>
+            <p className="unified-login-intro">Sign in with your registered email or phone number and password.</p>
             <form className="hospital-login-form" onSubmit={login}>
               <div className="simple-form-group">
                 <label>Email or phone number</label>

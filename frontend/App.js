@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useRef, useState } from 'react';
 import {
@@ -14,6 +15,64 @@ import {
 import { WebView } from 'react-native-webview';
 import DesktopApp from './src/App';
 
+const nativeGeolocationBridge = `
+  (function() {
+    var pendingRequests = new Map();
+    var nextRequestId = 0;
+
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: function(success, error, options) {
+          var requestId = String(Date.now()) + '-' + String(++nextRequestId);
+          var callbacks = { success: success, error: error, timeout: null };
+          pendingRequests.set(requestId, callbacks);
+          if (options && options.timeout > 0) {
+            callbacks.timeout = setTimeout(function() {
+              if (!pendingRequests.has(requestId)) return;
+              pendingRequests.delete(requestId);
+              if (callbacks.error) {
+                callbacks.error({ code: 3, message: 'Location request timed out.' });
+              }
+            }, options.timeout);
+          }
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'location-request',
+            requestId: requestId,
+            enableHighAccuracy: Boolean(options && options.enableHighAccuracy)
+          }));
+        }
+      }
+    });
+
+    window.__resolveNativeGeolocation = function(result) {
+      var callbacks = pendingRequests.get(result.requestId);
+      if (!callbacks) return;
+      pendingRequests.delete(result.requestId);
+      if (callbacks.timeout) clearTimeout(callbacks.timeout);
+
+      if (result.error) {
+        if (callbacks.error) callbacks.error(result.error);
+        return;
+      }
+
+      callbacks.success({
+        coords: {
+          latitude: result.latitude,
+          longitude: result.longitude,
+          accuracy: result.accuracy,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null
+        },
+        timestamp: result.timestamp
+      });
+    };
+  })();
+  true;
+`;
+
 function getDesktopUiUrl() {
   const configuredUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.trim();
   if (configuredUrl) return configuredUrl.replace(/\/$/, '');
@@ -27,6 +86,50 @@ function MobileDesktopApp() {
   const webView = useRef(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+
+  async function handleWebViewMessage(event) {
+    let message;
+    try {
+      message = JSON.parse(event.nativeEvent.data);
+    } catch (error) {
+      console.error('Invalid message from the Smart Dispatch web app:', error);
+      return;
+    }
+
+    if (message.type !== 'location-request' || !message.requestId) return;
+
+    function resolveLocation(result) {
+      const payload = { requestId: message.requestId, ...result };
+      webView.current?.injectJavaScript(
+        `window.__resolveNativeGeolocation(${JSON.stringify(payload)}); true;`
+      );
+    }
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        resolveLocation({
+          error: { code: 1, message: 'Location permission was not granted.' }
+        });
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: message.enableHighAccuracy ? Location.Accuracy.High : Location.Accuracy.Balanced
+      });
+      resolveLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: position.timestamp
+      });
+    } catch (error) {
+      console.error('Could not detect device location:', error);
+      resolveLocation({
+        error: { code: 2, message: 'The device could not determine your location.' }
+      });
+    }
+  }
 
   return (
     <SafeAreaProvider>
@@ -46,7 +149,11 @@ function MobileDesktopApp() {
             setLoading(true);
             setLoadError(false);
           }}
-          onLoadEnd={() => setLoading(false)}
+          onLoadEnd={() => {
+            setLoading(false);
+            webView.current?.injectJavaScript(nativeGeolocationBridge);
+          }}
+          onMessage={handleWebViewMessage}
           onError={() => {
             setLoading(false);
             setLoadError(true);

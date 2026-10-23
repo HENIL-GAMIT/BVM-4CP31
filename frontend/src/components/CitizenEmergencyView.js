@@ -180,7 +180,10 @@ export default function CitizenEmergencyView({ onLogin }) {
         setStatusMsg('Location acquired with GPS accuracy.');
       },
       (err) => {
-        setStatusMsg('Could not read GPS automatically. Please select an area below.');
+        const reason = err.code === 1
+          ? 'Location permission was denied.'
+          : err.message || 'The device could not determine your location.';
+        setStatusMsg(`${reason} Please select an area below.`);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
